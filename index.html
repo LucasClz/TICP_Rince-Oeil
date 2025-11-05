@@ -434,6 +434,9 @@
                     <button id="exportLibraryBtn" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
                         📤 Exporter configuration
                     </button>
+                    <button id="reloadTICPBtn" class="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">
+                        🔄 Recharger depuis TICP.json
+                    </button>
                 </div>
 
                 <div class="mt-6">
@@ -665,25 +668,25 @@
                 localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
                 localStorage.setItem('rinceOeil_campaign', currentCampaign);
                 
-                // Essayer de sauvegarder la config complète
-                try {
-                    localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
-                } catch (quotaError) {
-                    // Si quota dépassé, sauvegarder sans l'image du plan
-                    console.warn('LocalStorage quota dépassé, sauvegarde sans l\'image du plan');
-                    const configWithoutImage = {
-                        ...adminConfig,
-                        planImage: null
-                    };
-                    localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(configWithoutImage));
-                    localStorage.setItem('rinceOeil_hasExternalConfig', 'true');
+                // Ne sauvegarder la config que si on n'utilise pas TICP.json
+                const usingTICP = localStorage.getItem('rinceOeil_usingTICP');
+                if (usingTICP !== 'true') {
+                    // Essayer de sauvegarder la config complète
+                    try {
+                        localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
+                    } catch (quotaError) {
+                        // Si quota dépassé, sauvegarder sans l'image du plan
+                        console.warn('LocalStorage quota dépassé, sauvegarde sans l\'image du plan');
+                        const configWithoutImage = {
+                            ...adminConfig,
+                            planImage: null
+                        };
+                        localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(configWithoutImage));
+                        alert('Image du plan trop volumineuse pour localStorage. Utilisez "Exporter la configuration" pour sauvegarder complètement.');
+                    }
                 }
             } catch (e) {
                 console.error('Erreur de sauvegarde:', e);
-                // Ne pas afficher d'alerte si on utilise TICP.json
-                if (!localStorage.getItem('rinceOeil_hasExternalConfig')) {
-                    alert('Erreur lors de la sauvegarde des données. Utilisez TICP.json pour sauvegarder la configuration.');
-                }
             }
         }
 
@@ -2112,6 +2115,24 @@
             input.click();
         });
 
+        // Recharger depuis TICP.json
+        document.getElementById('reloadTICPBtn').addEventListener('click', async () => {
+            if (confirm('Recharger la configuration depuis TICP.json ? Les modifications non exportées seront perdues.')) {
+                try {
+                    const success = await loadTICPConfig();
+                    if (success) {
+                        loadAdminMode();
+                        alert('Configuration rechargée depuis TICP.json !');
+                    } else {
+                        alert('Impossible de charger TICP.json. Vérifiez que le fichier existe.');
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du rechargement TICP.json:', error);
+                    alert('Erreur lors du rechargement de TICP.json');
+                }
+            }
+        });
+
         // ========================================
         // MODE SOMBRE
         // ========================================
@@ -2187,18 +2208,24 @@
                         adminConfig.elements = data.elements.map(el => ({
                             ...el,
                             datesValiditeClassique: el.datesValiditeClassique || [],
-                            datesValiditePH: el.datesValiditePH || []
+                            datesValiditePH: el.datesValiditePH || [],
+                            // S'assurer que x et y sont des nombres
+                            x: parseFloat(el.x) || 0,
+                            y: parseFloat(el.y) || 0
                         }));
                     }
                     
-                    // NE PAS sauvegarder dans localStorage pour éviter les erreurs de quota
-                    // saveToStorage();
+                    // Marquer que TICP.json est utilisé
+                    localStorage.setItem('rinceOeil_usingTICP', 'true');
                     
                     console.log('Configuration TICP.json chargée avec succès:', adminConfig.elements.length, 'éléments');
+                    console.log('ElementSize:', adminConfig.elementSize);
+                    console.log('Premier élément:', adminConfig.elements[0]);
                     return true;
                 }
             } catch (e) {
                 console.log('Fichier TICP.json non trouvé ou erreur de chargement:', e.message);
+                localStorage.removeItem('rinceOeil_usingTICP');
             }
             return false;
         }
