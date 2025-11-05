@@ -663,11 +663,27 @@
         function saveToStorage() {
             try {
                 localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
-                localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
                 localStorage.setItem('rinceOeil_campaign', currentCampaign);
+                
+                // Essayer de sauvegarder la config complète
+                try {
+                    localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
+                } catch (quotaError) {
+                    // Si quota dépassé, sauvegarder sans l'image du plan
+                    console.warn('LocalStorage quota dépassé, sauvegarde sans l\'image du plan');
+                    const configWithoutImage = {
+                        ...adminConfig,
+                        planImage: null
+                    };
+                    localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(configWithoutImage));
+                    localStorage.setItem('rinceOeil_hasExternalConfig', 'true');
+                }
             } catch (e) {
                 console.error('Erreur de sauvegarde:', e);
-                alert('Erreur lors de la sauvegarde des données');
+                // Ne pas afficher d'alerte si on utilise TICP.json
+                if (!localStorage.getItem('rinceOeil_hasExternalConfig')) {
+                    alert('Erreur lors de la sauvegarde des données. Utilisez TICP.json pour sauvegarder la configuration.');
+                }
             }
         }
 
@@ -2165,17 +2181,24 @@
                     const data = await response.json();
                     if (data.zoneName) adminConfig.zoneName = data.zoneName;
                     if (data.planImage) adminConfig.planImage = data.planImage;
-                    if (data.elementSize) adminConfig.elementSize = data.elementSize;
-                    if (data.elements) adminConfig.elements = data.elements;
+                    if (data.elementSize !== undefined) adminConfig.elementSize = data.elementSize;
+                    if (data.elements) {
+                        // S'assurer que les éléments ont tous les champs nécessaires
+                        adminConfig.elements = data.elements.map(el => ({
+                            ...el,
+                            datesValiditeClassique: el.datesValiditeClassique || [],
+                            datesValiditePH: el.datesValiditePH || []
+                        }));
+                    }
                     
-                    // Sauvegarder dans localStorage
-                    saveToStorage();
+                    // NE PAS sauvegarder dans localStorage pour éviter les erreurs de quota
+                    // saveToStorage();
                     
-                    console.log('Configuration TICP.json chargée avec succès');
+                    console.log('Configuration TICP.json chargée avec succès:', adminConfig.elements.length, 'éléments');
                     return true;
                 }
             } catch (e) {
-                console.log('Fichier TICP.json non trouvé ou erreur de chargement, utilisation de localStorage');
+                console.log('Fichier TICP.json non trouvé ou erreur de chargement:', e.message);
             }
             return false;
         }
@@ -2184,12 +2207,28 @@
         // INITIALISATION
         // ========================================
         document.addEventListener('DOMContentLoaded', async () => {
-            // Charger d'abord depuis localStorage
-            loadFromStorage();
+            // Essayer de charger TICP.json en priorité
+            const ticpLoaded = await loadTICPConfig();
             
-            // Si pas de configuration en localStorage, essayer de charger TICP.json
-            if (!adminConfig.planImage || adminConfig.elements.length === 0) {
-                await loadTICPConfig();
+            // Si TICP.json n'est pas disponible, charger depuis localStorage
+            if (!ticpLoaded) {
+                loadFromStorage();
+            } else {
+                // Si TICP.json est chargé, charger quand même les inspections depuis localStorage
+                try {
+                    const savedInspections = localStorage.getItem('rinceOeil_inspections');
+                    const savedCampaign = localStorage.getItem('rinceOeil_campaign');
+                    
+                    if (savedInspections) {
+                        inspections = JSON.parse(savedInspections);
+                    }
+                    if (savedCampaign) {
+                        currentCampaign = savedCampaign;
+                        document.getElementById('campaignSelect').value = currentCampaign;
+                    }
+                } catch (e) {
+                    console.error('Erreur lors du chargement des inspections:', e);
+                }
             }
             
             loadPlan();
