@@ -642,6 +642,7 @@
         let isAdminMode = false;
         let currentEditingElement = null; // Pour le mode admin
         let currentStatusFilter = 'all'; // Filtre: 'all', 'notEvaluated', 'nonConforme'
+        let ticpConfigLoaded = false; // Flag pour savoir si TICP.json a été chargé
         let adminConfig = {
             zoneName: '',
             planImage: null,
@@ -696,8 +697,14 @@
         // ========================================
         function saveToStorage() {
             try {
+                // Toujours sauvegarder les inspections
                 localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
-                localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
+                
+                // Sauvegarder la config seulement si TICP.json n'est pas utilisé
+                if (!ticpConfigLoaded) {
+                    localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
+                }
+                
                 localStorage.setItem('rinceOeil_campaign', currentCampaign);
             } catch (e) {
                 console.error('Erreur de sauvegarde:', e);
@@ -711,10 +718,13 @@
                 const savedConfig = localStorage.getItem('rinceOeil_adminConfig');
                 const savedCampaign = localStorage.getItem('rinceOeil_campaign');
 
+                // Toujours charger les inspections
                 if (savedInspections) {
                     inspections = JSON.parse(savedInspections);
                 }
-                if (savedConfig) {
+                
+                // Charger la config seulement si TICP.json n'a pas été chargé
+                if (!ticpConfigLoaded && savedConfig) {
                     adminConfig = JSON.parse(savedConfig);
                     
                     // Migration: Convertir les anciennes dates en tableaux
@@ -744,6 +754,51 @@
                 }
             } catch (e) {
                 console.error('Erreur de chargement:', e);
+            }
+        }
+
+        // Fonction pour charger automatiquement TICP.json au démarrage
+        async function loadTICPConfig() {
+            try {
+                console.log('🔍 Tentative de chargement de TICP.json...');
+                const response = await fetch('./TICP.json');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Charger la configuration depuis TICP.json
+                    if (data.zoneName) adminConfig.zoneName = data.zoneName;
+                    if (data.planImage) adminConfig.planImage = data.planImage;
+                    if (data.elementSize !== undefined) adminConfig.elementSize = data.elementSize;
+                    
+                    if (data.elements) {
+                        adminConfig.elements = data.elements.map(el => ({
+                            ...el,
+                            x: parseFloat(el.x) || 0,
+                            y: parseFloat(el.y) || 0,
+                            datesValiditeClassique: el.datesValiditeClassique || [],
+                            datesValiditePH: el.datesValiditePH || []
+                        }));
+                    }
+                    
+                    console.log('✅ TICP.json chargé avec succès:', {
+                        zoneName: adminConfig.zoneName,
+                        nbElements: adminConfig.elements.length,
+                        elementSize: adminConfig.elementSize,
+                        hasImage: !!adminConfig.planImage
+                    });
+                    
+                    ticpConfigLoaded = true; // Marquer que TICP.json a été chargé
+                    return true;
+                } else {
+                    console.log('ℹ️ TICP.json non trouvé, utilisation des données localStorage');
+                    ticpConfigLoaded = false;
+                    return false;
+                }
+            } catch (error) {
+                console.log('ℹ️ Pas de TICP.json disponible:', error.message);
+                ticpConfigLoaded = false;
+                return false;
             }
         }
 
@@ -2276,11 +2331,25 @@
         // ========================================
         // INITIALISATION
         // ========================================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. Essayer de charger TICP.json en priorité
+            const ticpLoaded = await loadTICPConfig();
+            
+            // 2. Charger les inspections depuis localStorage
             loadFromStorage();
+            
+            // 3. Afficher le plan (priorité à TICP.json si chargé)
             loadPlan();
+            
+            // 4. Mettre à jour les KPIs et la liste
             updateKPIs();
             renderRinceOeilList();
+            
+            if (ticpLoaded) {
+                console.log('📍 Plan chargé depuis TICP.json');
+            } else {
+                console.log('📍 Plan chargé depuis localStorage');
+            }
         });
     </script>
 </body>
