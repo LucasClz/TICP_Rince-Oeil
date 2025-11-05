@@ -434,9 +434,6 @@
                     <button id="exportLibraryBtn" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
                         📤 Exporter configuration
                     </button>
-                    <button id="reloadTICPBtn" class="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">
-                        🔄 Recharger depuis TICP.json
-                    </button>
                 </div>
 
                 <div class="mt-6">
@@ -660,33 +657,51 @@
         let startX = 0;
         let startY = 0;
 
+        // Fonction pour calculer le facteur d'agrandissement selon les panneaux fermés
+        function getElementSizeScale() {
+            const leftPanelHidden = document.getElementById('leftPanel').classList.contains('hidden');
+            const rightPanelHidden = document.getElementById('notationPanel').classList.contains('hidden');
+            
+            let scale = 1.0;
+            if (leftPanelHidden) scale += 0.3; // +30% si panneau gauche fermé
+            if (rightPanelHidden) scale += 0.3; // +30% si panneau droit fermé
+            // Si les deux panneaux sont fermés: scale = 1.6 (60% plus grand)
+            
+            return scale;
+        }
+
+        // Fonction pour appliquer la taille dynamique aux éléments
+        function applyDynamicElementSize() {
+            const baseSize = adminConfig.elementSize || 20;
+            const scale = getElementSizeScale();
+            const finalSize = Math.round(baseSize * scale);
+            
+            console.log(`📏 Taille dynamique: base=${baseSize}px × ${scale.toFixed(2)} = ${finalSize}px`);
+            
+            // Mettre à jour tous les éléments admin
+            document.querySelectorAll('.admin-element').forEach(elem => {
+                elem.style.width = `${finalSize}px`;
+                elem.style.height = `${finalSize}px`;
+            });
+            
+            // Mettre à jour tous les hotspots d'inspection
+            document.querySelectorAll('.hotspot').forEach(elem => {
+                elem.style.width = `${finalSize}px`;
+                elem.style.height = `${finalSize}px`;
+            });
+        }
+
         // ========================================
         // STOCKAGE LOCAL
         // ========================================
         function saveToStorage() {
             try {
                 localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
+                localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
                 localStorage.setItem('rinceOeil_campaign', currentCampaign);
-                
-                // Ne sauvegarder la config que si on n'utilise pas TICP.json
-                const usingTICP = localStorage.getItem('rinceOeil_usingTICP');
-                if (usingTICP !== 'true') {
-                    // Essayer de sauvegarder la config complète
-                    try {
-                        localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
-                    } catch (quotaError) {
-                        // Si quota dépassé, sauvegarder sans l'image du plan
-                        console.warn('LocalStorage quota dépassé, sauvegarde sans l\'image du plan');
-                        const configWithoutImage = {
-                            ...adminConfig,
-                            planImage: null
-                        };
-                        localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(configWithoutImage));
-                        alert('Image du plan trop volumineuse pour localStorage. Utilisez "Exporter la configuration" pour sauvegarder complètement.');
-                    }
-                }
             } catch (e) {
                 console.error('Erreur de sauvegarde:', e);
+                alert('Erreur lors de la sauvegarde des données');
             }
         }
 
@@ -1332,6 +1347,8 @@
             const planWrapper = document.getElementById('planWrapper');
             const planImage = document.getElementById('planImage');
             
+            console.log('🔵 addHotspots - elementSize:', adminConfig.elementSize);
+            
             // Récupérer le filtre d'équipe
             const filterEquipe = document.getElementById('filterEquipe')?.value || '';
 
@@ -1421,6 +1438,9 @@
                 
                 planWrapper.appendChild(hotspot);
             });
+            
+            // Appliquer la taille dynamique après le rendu
+            applyDynamicElementSize();
         }
 
         // ========================================
@@ -1492,10 +1512,17 @@
             document.getElementById('adminZoneName').value = adminConfig.zoneName || '';
             document.getElementById('elementSizeSlider').value = adminConfig.elementSize || 20;
             document.getElementById('elementSizeValue').textContent = adminConfig.elementSize || 20;
+            
+            console.log('🔧 loadAdminMode - elementSize:', adminConfig.elementSize);
+            
             closeAdminEditPanel(); // Fermer le panneau d'édition
             
             if (adminConfig.planImage) {
                 showAdminPlan();
+                // Forcer la mise à jour de la taille après le rendu avec facteur d'échelle
+                setTimeout(() => {
+                    applyDynamicElementSize();
+                }, 100);
             }
         }
 
@@ -1505,19 +1532,19 @@
             document.getElementById('elementSizeValue').textContent = size;
             adminConfig.elementSize = size;
             
-            // Mettre à jour la taille CSS de tous les éléments
-            updateElementSize(size);
+            // Mettre à jour la taille CSS de tous les éléments avec le facteur d'échelle
+            applyDynamicElementSize();
             saveToStorage();
         });
 
         function updateElementSize(size) {
-            // Mettre à jour tous les éléments admin
+            // Cette fonction applique directement une taille sans facteur d'échelle
+            // Utilisée uniquement pour des cas spécifiques
             document.querySelectorAll('.admin-element').forEach(elem => {
                 elem.style.width = `${size}px`;
                 elem.style.height = `${size}px`;
             });
             
-            // Mettre à jour tous les hotspots d'inspection
             document.querySelectorAll('.hotspot').forEach(elem => {
                 elem.style.width = `${size}px`;
                 elem.style.height = `${size}px`;
@@ -1547,9 +1574,9 @@
             const adminContent = document.getElementById('adminContent');
             adminContent.innerHTML = `
                 <div class="h-full flex flex-col">
-                    <div class="flex-1 relative" style="min-height: 0;">
-                        <div id="adminPlanWrapper" style="width: 100%; height: 100%; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                            <img id="adminPlanImage" src="${adminConfig.planImage}" style="max-width: 100%; max-height: 100%; display: block; user-select: none; pointer-events: none;">
+                    <div class="flex-1 flex items-center justify-center overflow-hidden" style="min-height: 0;">
+                        <div id="adminPlanWrapper" class="plan-wrapper">
+                            <img id="adminPlanImage" src="${adminConfig.planImage}" class="plan-image" style="user-select: none; pointer-events: none;">
                         </div>
                     </div>
                 </div>
@@ -1577,6 +1604,11 @@
             const adminPlanWrapper = document.getElementById('adminPlanWrapper');
             if (!adminPlanWrapper) return;
 
+            console.log('🎨 Rendu des éléments admin:', {
+                nbElements: adminConfig.elements.length,
+                elementSize: adminConfig.elementSize
+            });
+
             adminConfig.elements.forEach((element, index) => {
                 const elem = document.createElement('div');
                 elem.className = `admin-element ${element.type}`;
@@ -1586,6 +1618,17 @@
                 elem.style.width = `${adminConfig.elementSize || 20}px`;
                 elem.style.height = `${adminConfig.elementSize || 20}px`;
                 elem.dataset.id = element.id;
+
+                if (index === 0) {
+                    console.log('   Premier élément positionné:', {
+                        id: element.id,
+                        x: element.x,
+                        y: element.y,
+                        type: element.type,
+                        styleLeft: elem.style.left,
+                        styleTop: elem.style.top
+                    });
+                }
 
                 // Drag & drop
                 elem.addEventListener('mousedown', (e) => {
@@ -1604,6 +1647,9 @@
 
                 adminPlanWrapper.appendChild(elem);
             });
+            
+            // Appliquer la taille dynamique après le rendu
+            applyDynamicElementSize();
         }
 
         // Fonctions pour gérer les champs de dates multiples
@@ -1699,10 +1745,10 @@
             
             e.preventDefault(); // Empêcher la sélection pendant le déplacement
             
-            const adminPlanWrapper = document.getElementById('adminPlanWrapper');
-            if (!adminPlanWrapper) return;
+            const adminPlanImage = document.getElementById('adminPlanImage');
+            if (!adminPlanImage) return;
 
-            const rect = adminPlanWrapper.getBoundingClientRect();
+            const rect = adminPlanImage.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
 
@@ -1713,10 +1759,10 @@
         document.addEventListener('mouseup', (e) => {
             if (!draggedElement) return;
 
-            const adminPlanWrapper = document.getElementById('adminPlanWrapper');
-            if (!adminPlanWrapper) return;
+            const adminPlanImage = document.getElementById('adminPlanImage');
+            if (!adminPlanImage) return;
 
-            const rect = adminPlanWrapper.getBoundingClientRect();
+            const rect = adminPlanImage.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
 
@@ -1725,6 +1771,13 @@
             if (element) {
                 element.x = Math.max(0, Math.min(100, x));
                 element.y = Math.max(0, Math.min(100, y));
+                
+                console.log('💾 Position sauvegardée:', {
+                    id: elementId,
+                    x: element.x.toFixed(2),
+                    y: element.y.toFixed(2)
+                });
+                
                 saveToStorage();
             }
 
@@ -2072,17 +2125,35 @@
 
         // Import/Export config
         document.getElementById('exportLibraryBtn').addEventListener('click', () => {
+            // Exporter toutes les données de configuration
             const data = {
                 zoneName: adminConfig.zoneName,
                 planImage: adminConfig.planImage,
-                elementSize: adminConfig.elementSize,
-                elements: adminConfig.elements
+                elementSize: adminConfig.elementSize || 20,
+                elements: adminConfig.elements.map(el => ({
+                    ...el,
+                    // S'assurer que x et y sont bien des nombres
+                    x: parseFloat(el.x) || 0,
+                    y: parseFloat(el.y) || 0
+                }))
             };
+            
+            console.log('📤 Export configuration:', {
+                nbElements: data.elements.length,
+                elementSize: data.elementSize,
+                firstElement: data.elements[0] ? {
+                    id: data.elements[0].id,
+                    x: data.elements[0].x,
+                    y: data.elements[0].y,
+                    type: data.elements[0].type
+                } : null
+            });
+            
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `TICP.json`;
+            a.download = `config_rince-oeil_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
             URL.revokeObjectURL(url);
         });
@@ -2101,11 +2172,32 @@
                             adminConfig.zoneName = data.zoneName || '';
                             adminConfig.planImage = data.planImage || null;
                             adminConfig.elementSize = data.elementSize || 20;
-                            adminConfig.elements = data.elements || [];
+                            
+                            // S'assurer que les coordonnées sont des nombres
+                            adminConfig.elements = (data.elements || []).map(el => ({
+                                ...el,
+                                x: parseFloat(el.x) || 0,
+                                y: parseFloat(el.y) || 0,
+                                datesValiditeClassique: el.datesValiditeClassique || [],
+                                datesValiditePH: el.datesValiditePH || []
+                            }));
+                            
+                            console.log('📥 Import configuration:', {
+                                nbElements: adminConfig.elements.length,
+                                elementSize: adminConfig.elementSize,
+                                firstElement: adminConfig.elements[0] ? {
+                                    id: adminConfig.elements[0].id,
+                                    x: adminConfig.elements[0].x,
+                                    y: adminConfig.elements[0].y,
+                                    type: adminConfig.elements[0].type
+                                } : null
+                            });
+                            
                             saveToStorage();
                             loadAdminMode();
                             alert('Configuration importée avec succès !');
                         } catch (error) {
+                            console.error('Erreur import:', error);
                             alert('Erreur lors de l\'import : fichier invalide');
                         }
                     };
@@ -2113,24 +2205,6 @@
                 }
             };
             input.click();
-        });
-
-        // Recharger depuis TICP.json
-        document.getElementById('reloadTICPBtn').addEventListener('click', async () => {
-            if (confirm('Recharger la configuration depuis TICP.json ? Les modifications non exportées seront perdues.')) {
-                try {
-                    const success = await loadTICPConfig();
-                    if (success) {
-                        loadAdminMode();
-                        alert('Configuration rechargée depuis TICP.json !');
-                    } else {
-                        alert('Impossible de charger TICP.json. Vérifiez que le fichier existe.');
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du rechargement TICP.json:', error);
-                    alert('Erreur lors du rechargement de TICP.json');
-                }
-            }
         });
 
         // ========================================
@@ -2165,6 +2239,8 @@
             const reopenBtn = document.getElementById('reopenNotationBtn');
             notationPanel.classList.add('hidden');
             reopenBtn.classList.remove('hidden');
+            // Agrandir les éléments proportionnellement
+            applyDynamicElementSize();
         });
 
         // Réouvrir le panneau de notation
@@ -2173,6 +2249,8 @@
             const reopenBtn = document.getElementById('reopenNotationBtn');
             notationPanel.classList.remove('hidden');
             reopenBtn.classList.add('hidden');
+            // Réduire les éléments proportionnellement
+            applyDynamicElementSize();
         });
 
         // Fermer le panneau de gauche (indicateurs)
@@ -2181,6 +2259,8 @@
             const reopenBtn = document.getElementById('reopenLeftPanelBtn');
             leftPanel.classList.add('hidden');
             reopenBtn.classList.remove('hidden');
+            // Agrandir les éléments proportionnellement
+            applyDynamicElementSize();
         });
 
         // Réouvrir le panneau de gauche (indicateurs)
@@ -2189,75 +2269,15 @@
             const reopenBtn = document.getElementById('reopenLeftPanelBtn');
             leftPanel.classList.remove('hidden');
             reopenBtn.classList.add('hidden');
+            // Réduire les éléments proportionnellement
+            applyDynamicElementSize();
         });
-
-        // ========================================
-        // CHARGEMENT AUTOMATIQUE TICP.json
-        // ========================================
-        async function loadTICPConfig() {
-            try {
-                // Essayer de charger le fichier TICP.json depuis le même dossier que le HTML
-                const response = await fetch('./TICP.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.zoneName) adminConfig.zoneName = data.zoneName;
-                    if (data.planImage) adminConfig.planImage = data.planImage;
-                    if (data.elementSize !== undefined) adminConfig.elementSize = data.elementSize;
-                    if (data.elements) {
-                        // S'assurer que les éléments ont tous les champs nécessaires
-                        adminConfig.elements = data.elements.map(el => ({
-                            ...el,
-                            datesValiditeClassique: el.datesValiditeClassique || [],
-                            datesValiditePH: el.datesValiditePH || [],
-                            // S'assurer que x et y sont des nombres
-                            x: parseFloat(el.x) || 0,
-                            y: parseFloat(el.y) || 0
-                        }));
-                    }
-                    
-                    // Marquer que TICP.json est utilisé
-                    localStorage.setItem('rinceOeil_usingTICP', 'true');
-                    
-                    console.log('Configuration TICP.json chargée avec succès:', adminConfig.elements.length, 'éléments');
-                    console.log('ElementSize:', adminConfig.elementSize);
-                    console.log('Premier élément:', adminConfig.elements[0]);
-                    return true;
-                }
-            } catch (e) {
-                console.log('Fichier TICP.json non trouvé ou erreur de chargement:', e.message);
-                localStorage.removeItem('rinceOeil_usingTICP');
-            }
-            return false;
-        }
 
         // ========================================
         // INITIALISATION
         // ========================================
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Essayer de charger TICP.json en priorité
-            const ticpLoaded = await loadTICPConfig();
-            
-            // Si TICP.json n'est pas disponible, charger depuis localStorage
-            if (!ticpLoaded) {
-                loadFromStorage();
-            } else {
-                // Si TICP.json est chargé, charger quand même les inspections depuis localStorage
-                try {
-                    const savedInspections = localStorage.getItem('rinceOeil_inspections');
-                    const savedCampaign = localStorage.getItem('rinceOeil_campaign');
-                    
-                    if (savedInspections) {
-                        inspections = JSON.parse(savedInspections);
-                    }
-                    if (savedCampaign) {
-                        currentCampaign = savedCampaign;
-                        document.getElementById('campaignSelect').value = currentCampaign;
-                    }
-                } catch (e) {
-                    console.error('Erreur lors du chargement des inspections:', e);
-                }
-            }
-            
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
             loadPlan();
             updateKPIs();
             renderRinceOeilList();
