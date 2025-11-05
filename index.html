@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.5, maximum-scale=3.0">
+    <title>Tournée Rince-Œil - Gestion des Inspections (MR)</title>
+    <!-- Version 2.0 - Migration vers application Rince-Œil (04/11/2025) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Mode sombre */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --modal-bg: #ffffff;
+            --input-bg: #ffffff;
+            --card-bg: #ffffff;
+        }
+        
+        .dark-mode {
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --bg-tertiary: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --border-color: #4b5563;
+            --modal-bg: #374151;
+            --input-bg: #1f2937;
+            --card-bg: #374151;
+        }
+        
+        body {
+            box-sizing: border-box;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+            min-width: 320px;
+            overflow-x: auto;
+        }
+        
+        html {
+            min-width: 320px;
+            overflow-x: auto;
+        }
+        
+        .bg-white { background-color: var(--card-bg) !important; }
+        .bg-gray-50 { background-color: var(--bg-secondary) !important; }
+        .bg-gray-100 { background-color: var(--bg-tertiary) !important; }
+        .text-gray-900 { color: var(--text-primary) !important; }
+        .text-gray-700 { color: var(--text-primary) !important; }
+        .text-gray-600 { color: var(--text-secondary) !important; }
+        .border-gray-200 { border-color: var(--border-color) !important; }
+        .border-gray-300 { border-color: var(--border-color) !important; }
+        
+        .dark-mode h3 { color: var(--text-primary) !important; }
+        .dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+        .dark-mode .text-sm { color: var(--text-primary); }
+        .dark-mode label { color: var(--text-primary) !important; }
+        
+        .dark-mode input::placeholder,
+        .dark-mode textarea::placeholder {
+            color: var(--text-secondary) !important;
+            opacity: 0.8;
+        }
+        
+        /* Plan container */
+        .plan-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .plan-wrapper {
+            position: relative;
+            display: inline-block;
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+        }
+
+        .plan-image {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: none;
+        }
+
+        .plan-image.draggable {
+            cursor: grab;
+            pointer-events: auto;
+        }
+
+        .plan-image.draggable:active {
+            cursor: grabbing;
+        }
+        
+        /* Empêcher la sélection en mode admin */
+        #adminPlanWrapper {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        #adminPlanWrapper * {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        /* Hotspots pour rince-œil */
+        .hotspot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+
+        .hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.3);
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+
+        /* Rince-œil neutraliseur pH - Bleu */
+        .hotspot.neutraliseur {
+            background-color: #3b82f6;
+            border-color: #1d4ed8;
+        }
+
+        /* Rince-œil standard - Vert */
+        .hotspot.standard {
+            background-color: #22c55e;
+            border-color: #15803d;
+        }
+
+        /* Rince-œil présent */
+        .hotspot.present {
+            opacity: 1;
+        }
+
+        /* Rince-œil conforme (quantité OK) */
+        .hotspot.conforme {
+            border-color: #16a34a;
+            border-width: 3px;
+        }
+
+        /* Rince-œil non conforme (quantité KO) */
+        .hotspot.non-conforme {
+            border-color: #dc2626;
+            border-width: 3px;
+        }
+
+        /* Mode admin */
+        .admin-element {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: move;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(0, 0, 0, 0.5);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .admin-element.neutraliseur {
+            background-color: #3b82f6;
+            border-color: #1d4ed8;
+        }
+
+        .admin-element.standard {
+            background-color: #22c55e;
+            border-color: #15803d;
+        }
+
+        .admin-element:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* Panels */
+        .left-panel {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--modal-bg);
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .left-panel {
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50">
+    <div id="app" class="h-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-bold text-gray-900">Tournée Rince-Œil</h1>
+                </div>
+                <div class="flex gap-4">
+                    <select id="campaignSelect" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="2025Q4">2025 Q4</option>
+                        <option value="2026Q1">2026 Q1</option>
+                    </select>
+                    <button id="darkModeToggle" class="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors" title="Mode sombre/clair">
+                        🌙
+                    </button>
+                    <button id="dashboardBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        📊 Tableau de bord
+                    </button>
+                    <button id="adminModeBtn" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                        ⚙️ Mode Admin
+                    </button>
+                    <button id="exportBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        📥 Exporter
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Bouton pour réouvrir le panneau indicateurs -->
+            <button id="reopenLeftPanelBtn" class="hidden fixed left-4 top-24 bg-blue-600 text-white px-3 py-2 rounded-md shadow-lg hover:bg-blue-700 z-50">
+                📊 Indicateurs
+            </button>
+            
+            <!-- Left Panel -->
+            <div id="leftPanel" class="left-panel bg-white border-r flex flex-col">
+                <!-- Header avec bouton de fermeture -->
+                <div class="flex items-center justify-between p-2 border-b flex-shrink-0">
+                    <h2 class="text-sm font-semibold">Indicateurs</h2>
+                    <button id="leftPanelCloseBtn" class="text-xs text-gray-600 px-1 py-1 rounded hover:bg-gray-100">✕</button>
+                </div>
+                
+                <!-- KPIs -->
+                <div class="p-2 flex-1 overflow-y-auto">
+                    <div class="space-y-1.5">
+                        <div class="kpi-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                            <div class="text-base font-bold" id="kpiNeutraliseur">0%</div>
+                            <div class="text-[10px] opacity-90 leading-tight">Rince-œil pH</div>
+                        </div>
+                        <div class="kpi-card" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+                            <div class="text-base font-bold" id="kpiStandard">0%</div>
+                            <div class="text-[10px] opacity-90 leading-tight">Rince-œil classique</div>
+                        </div>
+                        <div class="kpi-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                            <div class="text-base font-bold" id="kpiTotal">0%</div>
+                            <div class="text-[10px] opacity-90 leading-tight">Total</div>
+                        </div>
+                    </div>
+
+                    <!-- Liste des rince-œil -->
+                    <div class="mt-4">
+                        <div class="mb-2">
+                            <h3 class="text-sm font-semibold mb-2">Liste des Rince-Œil</h3>
+                            
+                            <!-- Filtres de statut -->
+                            <div class="flex gap-1 mb-2">
+                                <button id="filterAll" onclick="setStatusFilter('all')" class="flex-1 text-[10px] px-2 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-medium">
+                                    Tous
+                                </button>
+                                <button id="filterNotEvaluated" onclick="setStatusFilter('notEvaluated')" class="flex-1 text-[10px] px-2 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200">
+                                    Non évalués
+                                </button>
+                                <button id="filterNonConforme" onclick="setStatusFilter('nonConforme')" class="flex-1 text-[10px] px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200">
+                                    Non conformes
+                                </button>
+                            </div>
+                            
+                            <!-- Filtre d'équipe -->
+                            <select id="filterEquipe" onchange="renderRinceOeilList(); addHotspots();" class="text-xs px-2 py-1 border border-gray-300 rounded w-full">
+                                <option value="">Toutes équipes</option>
+                                <option value="MR1">MR1</option>
+                                <option value="MR2">MR2</option>
+                                <option value="MR3">MR3</option>
+                                <option value="MR4">MR4</option>
+                                <option value="MR5">MR5</option>
+                                <option value="MR6">MR6</option>
+                                <option value="MR7">MR7</option>
+                                <option value="MR8">MR8</option>
+                                <option value="MR9">MR9</option>
+                                <option value="MR12">MR12</option>
+                                <option value="MR13">MR13</option>
+                                <option value="MR14">MR14</option>
+                                <option value="MR15">MR15</option>
+                                <option value="SC Kitting">SC Kitting</option>
+                                <option value="SC2">SC2</option>
+                                <option value="SC4">SC4</option>
+                                <option value="SC10">SC10</option>
+                                <option value="PRM1">PRM1</option>
+                                <option value="PRM2">PRM2</option>
+                                <option value="PRM3">PRM3</option>
+                                <option value="PRM4">PRM4</option>
+                                <option value="PRM5">PRM5</option>
+                                <option value="PRM6">PRM6</option>
+                                <option value="PRM7">PRM7</option>
+                                <option value="PRM8">PRM8</option>
+                                <option value="PRM10">PRM10</option>
+                                <option value="PRM11">PRM11</option>
+                                <option value="Gardien">Gardien</option>
+                                <option value="IO">IO</option>
+                                <option value="Lavage">Lavage</option>
+                            </select>
+                        </div>
+                        <div id="rinceOeilList" class="space-y-2 text-xs">
+                            <p class="text-gray-500 text-center py-4">Aucun plan configuré</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan Area -->
+            <div class="flex-1 p-3 flex flex-col min-w-0 overflow-hidden">
+                <div class="flex justify-between items-center mb-2 flex-shrink-0">
+                    <h2 class="text-lg font-semibold" id="currentZoneName">Plan Rince-Œil</h2>
+                </div>
+                <div class="flex-1 flex items-center justify-center overflow-hidden" style="min-height: 0; height: calc(100vh - 150px);">
+                    <div id="planContainer" class="plan-container hidden" style="width: 100%; height: 100%;">
+                        <div id="planWrapper" class="plan-wrapper">
+                            <img id="planImage" class="plan-image" alt="Plan de la zone">
+                        </div>
+                    </div>
+                    <div id="noZoneMessage" class="text-gray-500 text-center">
+                        <div class="text-6xl mb-4">🚿</div>
+                        <p class="text-lg font-medium">Aucun plan configuré</p>
+                        <p class="text-sm mt-2">Utilisez le mode admin pour charger un plan</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Notation -->
+            <div class="w-[300px] bg-white border-l flex flex-col" id="notationPanel">
+                <div class="flex items-center justify-between p-2 border-b flex-shrink-0">
+                    <h2 class="text-base font-semibold">Inspection</h2>
+                    <button id="notationCloseBtn" class="text-xs text-gray-600 px-1 py-1 rounded hover:bg-gray-100">✕</button>
+                </div>
+                <div id="notationContent" class="text-gray-500 text-center p-4 overflow-y-auto flex-1">
+                    <div class="text-4xl mb-2">🚿</div>
+                    <p>Cliquez sur un rince-œil pour l'inspecter</p>
+                </div>
+            </div>
+            
+            <!-- Bouton pour réouvrir le panneau d'inspection -->
+            <button id="reopenNotationBtn" class="hidden fixed right-4 top-24 bg-blue-600 text-white px-3 py-2 rounded-md shadow-lg hover:bg-blue-700 z-50">
+                📋 Inspection
+            </button>
+        </div>
+    </div>
+
+    <!-- Admin Mode -->
+    <div id="adminMode" class="hidden h-full bg-gray-50">
+        <header class="bg-white shadow-sm border-b px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-bold text-gray-900">Mode Administration</h1>
+                </div>
+                <button id="exitAdminBtn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                    ← Retour
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <div class="w-80 bg-white border-r p-4" id="adminLeftPanel">
+                <div class="space-y-4">
+                    <button id="uploadPlanBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        📁 Charger un plan
+                    </button>
+                    <button id="importLibraryBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        📥 Importer configuration
+                    </button>
+                    <button id="exportLibraryBtn" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                        📤 Exporter configuration
+                    </button>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="font-semibold mb-3">Informations du plan</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nom de la zone</label>
+                            <input type="text" id="adminZoneName" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Ex: Atelier principal">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Taille des éléments: <span id="elementSizeValue">20</span>px</label>
+                            <input type="range" id="elementSizeSlider" min="10" max="40" value="20" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="font-semibold mb-3">Ajouter des rince-œil</h3>
+                    <div class="space-y-2">
+                        <button id="addNeutraliseurBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                            ➕ Neutraliseur pH (Bleu)
+                        </button>
+                        <button id="addStandardBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
+                            ➕ Standard (Vert)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="font-semibold mb-3">Actions</h3>
+                    <div class="space-y-2">
+                        <button id="saveConfigBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                            💾 Sauvegarder
+                        </button>
+                        <button id="clearAllBtn" class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                            🗑️ Tout effacer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 p-4">
+                <div id="adminContent" class="h-full flex items-center justify-center">
+                    <div class="text-center text-gray-500">
+                        <div class="text-6xl mb-4">🚿</div>
+                        <p class="text-lg font-medium">Chargez un plan pour commencer</p>
+                        <p class="text-sm mt-2">Utilisez le bouton "Charger un plan" pour importer une image</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Admin Edit Modal -->
+    <div id="adminEditModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Configuration du Rince-Œil</h2>
+                <button id="closeAdminEditModal" class="text-gray-600 hover:text-gray-900 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Numéro du rince-œil</label>
+                    <input type="text" id="adminEditNumero" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Ex: RO-1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Type</label>
+                    <input type="text" id="adminEditTypeModal" readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100" placeholder="Neutraliseur pH">
+                </div>
+                <div id="adminQuantityClassiqueDiv">
+                    <label class="block text-sm font-medium mb-2">Quantité prévue - Rince-œil classique</label>
+                    <input type="number" id="adminEditQuantityClassique" min="0" max="99" 
+                        onchange="updateDateFieldsClassique()" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="2">
+                </div>
+                <div id="adminDateClassiqueDiv">
+                    <label class="block text-sm font-medium mb-2">Dates de validité - Rince-œil classique</label>
+                    <div id="adminDateClassiqueContainer" class="space-y-2">
+                        <!-- Les champs de date seront générés dynamiquement -->
+                    </div>
+                </div>
+                <div id="adminQuantityPHDiv">
+                    <label class="block text-sm font-medium mb-2">Quantité prévue - Rince-œil pH</label>
+                    <input type="number" id="adminEditQuantityPH" min="0" max="99" 
+                        onchange="updateDateFieldsPH()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="1">
+                </div>
+                <div id="adminDatePHDiv">
+                    <label class="block text-sm font-medium mb-2">Dates de validité - Rince-œil pH</label>
+                    <div id="adminDatePHContainer" class="space-y-2">
+                        <!-- Les champs de date seront générés dynamiquement -->
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Équipe associée</label>
+                    <select id="adminEditEquipe" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">-- Sélectionner une équipe --</option>
+                        <option value="MR1">MR1</option>
+                        <option value="MR2">MR2</option>
+                        <option value="MR3">MR3</option>
+                        <option value="MR4">MR4</option>
+                        <option value="MR5">MR5</option>
+                        <option value="MR6">MR6</option>
+                        <option value="MR7">MR7</option>
+                        <option value="MR8">MR8</option>
+                        <option value="MR9">MR9</option>
+                        <option value="MR12">MR12</option>
+                        <option value="MR13">MR13</option>
+                        <option value="MR14">MR14</option>
+                        <option value="MR15">MR15</option>
+                        <option value="SC Kitting">SC Kitting</option>
+                        <option value="SC4">SC4</option>
+                        <option value="SC2">SC2</option>
+                        <option value="SC10">SC10</option>
+                        <option value="PRM1">PRM1</option>
+                        <option value="PRM2">PRM2</option>
+                        <option value="PRM3">PRM3</option>
+                        <option value="PRM4">PRM4</option>
+                        <option value="PRM5">PRM5</option>
+                        <option value="PRM6">PRM6</option>
+                        <option value="PRM7">PRM7</option>
+                        <option value="PRM8">PRM8</option>
+                        <option value="PRM10">PRM10</option>
+                        <option value="PRM11">PRM11</option>
+                        <option value="Gardien">Gardien</option>
+                        <option value="IO">IO</option>
+                        <option value="Lavage">Lavage</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Commentaire (optionnel)</label>
+                    <textarea id="adminEditCommentModal" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Ajouter un commentaire..."></textarea>
+                </div>
+                <div class="flex gap-2 pt-4">
+                    <button id="adminSaveEditModalBtn" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        💾 Enregistrer
+                    </button>
+                    <button id="adminDeleteModalBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        🗑️ Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dashboard Modal -->
+    <div id="dashboardModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Tableau de bord</h2>
+                <button id="closeDashboardBtn" class="text-gray-600 hover:text-gray-900 text-2xl">&times;</button>
+            </div>
+            <div id="dashboardContent">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <div class="text-sm text-blue-800 mb-1">Neutraliseur pH</div>
+                        <div class="text-3xl font-bold text-blue-900" id="dashNeutraliseur">0</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <div class="text-sm text-green-800 mb-1">Standard</div>
+                        <div class="text-3xl font-bold text-green-900" id="dashStandard">0</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg col-span-2">
+                        <div class="text-sm text-purple-800 mb-1">Total Rince-Œil</div>
+                        <div class="text-3xl font-bold text-purple-900" id="dashTotal">0</div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <h3 class="font-semibold mb-2">Progression par type</h3>
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Exporter les données</h2>
+                <button id="closeExportBtn" class="text-gray-600 hover:text-gray-900 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <button id="exportJSONBtn" class="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    📄 Exporter en JSON
+                </button>
+                <button id="exportCSVBtn" class="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700">
+                    📊 Exporter en CSV
+                </button>
+                <button id="exportPDFBtn" class="w-full px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    📑 Exporter en PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // VARIABLES GLOBALES
+        // ========================================
+        let currentCampaign = '2025Q4';
+        let currentZone = null;
+        let inspections = [];
+        let isAdminMode = false;
+        let currentEditingElement = null; // Pour le mode admin
+        let currentStatusFilter = 'all'; // Filtre: 'all', 'notEvaluated', 'nonConforme'
+        let adminConfig = {
+            zoneName: '',
+            planImage: null,
+            elementSize: 20, // Taille des éléments en pixels
+            elements: [] // {id, type: 'neutraliseur'|'standard', x, y, numero: '', quantityExpectedClassique: 1, quantityExpectedPH: 0, datesValiditeClassique: [], datesValiditePH: [], equipe: '', comment: ''}
+        };
+
+        // Pan/Zoom variables
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        // ========================================
+        // STOCKAGE LOCAL
+        // ========================================
+        function saveToStorage() {
+            try {
+                localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
+                localStorage.setItem('rinceOeil_adminConfig', JSON.stringify(adminConfig));
+                localStorage.setItem('rinceOeil_campaign', currentCampaign);
+            } catch (e) {
+                console.error('Erreur de sauvegarde:', e);
+                alert('Erreur lors de la sauvegarde des données');
+            }
+        }
+
+        function loadFromStorage() {
+            try {
+                const savedInspections = localStorage.getItem('rinceOeil_inspections');
+                const savedConfig = localStorage.getItem('rinceOeil_adminConfig');
+                const savedCampaign = localStorage.getItem('rinceOeil_campaign');
+
+                if (savedInspections) {
+                    inspections = JSON.parse(savedInspections);
+                }
+                if (savedConfig) {
+                    adminConfig = JSON.parse(savedConfig);
+                    
+                    // Migration: Convertir les anciennes dates en tableaux
+                    if (adminConfig.elements) {
+                        adminConfig.elements.forEach(element => {
+                            // Migration des dates classiques
+                            if (element.dateValiditeClassique && !element.datesValiditeClassique) {
+                                element.datesValiditeClassique = [element.dateValiditeClassique];
+                                delete element.dateValiditeClassique;
+                            } else if (!element.datesValiditeClassique) {
+                                element.datesValiditeClassique = [];
+                            }
+                            
+                            // Migration des dates pH
+                            if (element.dateValiditePH && !element.datesValiditePH) {
+                                element.datesValiditePH = [element.dateValiditePH];
+                                delete element.dateValiditePH;
+                            } else if (!element.datesValiditePH) {
+                                element.datesValiditePH = [];
+                            }
+                        });
+                    }
+                }
+                if (savedCampaign) {
+                    currentCampaign = savedCampaign;
+                    document.getElementById('campaignSelect').value = currentCampaign;
+                }
+            } catch (e) {
+                console.error('Erreur de chargement:', e);
+            }
+        }
+
+        // ========================================
+        // GESTION DES INSPECTIONS
+        // ========================================
+        function getInspection(elementId) {
+            return inspections.find(i => 
+                i.campaign === currentCampaign && 
+                i.elementId === elementId
+            );
+        }
+
+        function updateInspection(elementId, data) {
+            const existing = getInspection(elementId);
+            if (existing) {
+                Object.assign(existing, data);
+            } else {
+                inspections.push({
+                    campaign: currentCampaign,
+                    elementId: elementId,
+                    ...data
+                });
+            }
+            saveToStorage();
+            updateKPIs();
+            renderRinceOeilList();
+        }
+
+        // ========================================
+        // INTERFACE UTILISATEUR
+        // ========================================
+        function updateKPIs() {
+            if (!adminConfig.elements || adminConfig.elements.length === 0) {
+                document.getElementById('kpiNeutraliseur').textContent = 'N/A';
+                document.getElementById('kpiStandard').textContent = 'N/A';
+                document.getElementById('kpiTotal').textContent = 'N/A';
+                return;
+            }
+
+            const neutraliseurs = adminConfig.elements.filter(e => e.type === 'neutraliseur');
+            const standards = adminConfig.elements.filter(e => e.type === 'standard');
+            
+            // IMPORTANT: Les rince-œil classiques des neutraliseurs comptent dans "Standard"
+            // Seuls les rince-œil pH comptent dans "Neutraliseur pH"
+            
+            // Quantités totales attendues
+            const totalPHQty = neutraliseurs.reduce((sum, e) => 
+                sum + (e.quantityExpectedPH || 0), 0);
+            const totalStandardQty = standards.reduce((sum, e) => 
+                sum + (e.quantityExpectedClassique || 0), 0) +
+                neutraliseurs.reduce((sum, e) => sum + (e.quantityExpectedClassique || 0), 0);
+            const totalQty = totalPHQty + totalStandardQty;
+
+            // Quantités conformes
+            // Pour les pH: uniquement les rince-œil pH des neutraliseurs
+            const phConformesQty = neutraliseurs.reduce((sum, e) => {
+                const insp = getInspection(e.id);
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityExpectedPH = e.quantityExpectedPH || 0;
+                
+                const phOK = quantityPresentPH === quantityExpectedPH;
+                
+                // Vérifier toutes les dates pH
+                let dateOK = true;
+                if (e.datesValiditePH && e.datesValiditePH.length > 0) {
+                    e.datesValiditePH.forEach((date, idx) => {
+                        if (date && (!insp?.datesConformesPH || insp.datesConformesPH[idx] !== true)) {
+                            dateOK = false;
+                        }
+                    });
+                }
+                
+                if (phOK && dateOK && quantityPresentPH > 0) {
+                    return sum + quantityPresentPH;
+                }
+                return sum;
+            }, 0);
+
+            // Pour les standards: rince-œil classiques des standards + rince-œil classiques des neutraliseurs
+            const standardConformesQty = standards.reduce((sum, e) => {
+                const insp = getInspection(e.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityExpectedClassique = e.quantityExpectedClassique || 0;
+                
+                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
+                
+                // Vérifier toutes les dates classiques
+                let dateOK = true;
+                if (e.datesValiditeClassique && e.datesValiditeClassique.length > 0) {
+                    e.datesValiditeClassique.forEach((date, idx) => {
+                        if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                            dateOK = false;
+                        }
+                    });
+                }
+                
+                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
+                    return sum + quantityPresentClassique;
+                }
+                return sum;
+            }, 0) + neutraliseurs.reduce((sum, e) => {
+                const insp = getInspection(e.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityExpectedClassique = e.quantityExpectedClassique || 0;
+                
+                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
+                
+                // Vérifier toutes les dates classiques
+                let dateOK = true;
+                if (e.datesValiditeClassique && e.datesValiditeClassique.length > 0) {
+                    e.datesValiditeClassique.forEach((date, idx) => {
+                        if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                            dateOK = false;
+                        }
+                    });
+                }
+                
+                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
+                    return sum + quantityPresentClassique;
+                }
+                return sum;
+            }, 0);
+
+            const totalConformesQty = phConformesQty + standardConformesQty;
+
+            const phPercent = totalPHQty > 0 ? 
+                Math.round((phConformesQty / totalPHQty) * 100) : 0;
+            const standardPercent = totalStandardQty > 0 ? 
+                Math.round((standardConformesQty / totalStandardQty) * 100) : 0;
+            const totalPercent = totalQty > 0 ? 
+                Math.round((totalConformesQty / totalQty) * 100) : 0;
+
+            document.getElementById('kpiNeutraliseur').textContent = 
+                `${phPercent}% (${phConformesQty}/${totalPHQty} rince-œil pH)`;
+            document.getElementById('kpiStandard').textContent = 
+                `${standardPercent}% (${standardConformesQty}/${totalStandardQty} rince-œil classique)`;
+            document.getElementById('kpiTotal').textContent = 
+                `${totalPercent}% (${totalConformesQty}/${totalQty} rince-œil)`;
+        }
+
+        function setStatusFilter(filter) {
+            currentStatusFilter = filter;
+            
+            // Mettre à jour l'apparence des boutons
+            document.getElementById('filterAll').className = filter === 'all' 
+                ? 'flex-1 text-[10px] px-2 py-1 bg-gray-200 text-gray-800 rounded font-medium'
+                : 'flex-1 text-[10px] px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200';
+            
+            document.getElementById('filterNotEvaluated').className = filter === 'notEvaluated'
+                ? 'flex-1 text-[10px] px-2 py-1 bg-orange-200 text-orange-900 rounded font-medium'
+                : 'flex-1 text-[10px] px-2 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200';
+            
+            document.getElementById('filterNonConforme').className = filter === 'nonConforme'
+                ? 'flex-1 text-[10px] px-2 py-1 bg-red-200 text-red-900 rounded font-medium'
+                : 'flex-1 text-[10px] px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200';
+            
+            // Re-rendre la liste et les hotspots sur le plan
+            renderRinceOeilList();
+            addHotspots();
+        }
+
+        function renderRinceOeilList() {
+            const container = document.getElementById('rinceOeilList');
+            
+            if (!adminConfig.elements || adminConfig.elements.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun rince-œil configuré</p>';
+                return;
+            }
+
+            // Récupérer le filtre d'équipe
+            const filterEquipe = document.getElementById('filterEquipe')?.value || '';
+
+            // Filtrer les éléments par équipe
+            let filteredElements = adminConfig.elements;
+            if (filterEquipe) {
+                filteredElements = adminConfig.elements.filter(e => e.equipe === filterEquipe);
+            }
+
+            // Filtrer par statut
+            if (currentStatusFilter === 'notEvaluated') {
+                filteredElements = filteredElements.filter(e => {
+                    const insp = getInspection(e.id);
+                    const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                    const quantityPresentPH = insp?.quantityPresentPH || 0;
+                    // Non évalué = aucune quantité saisie
+                    return (quantityPresentClassique === 0 && quantityPresentPH === 0);
+                });
+            } else if (currentStatusFilter === 'nonConforme') {
+                filteredElements = filteredElements.filter(e => {
+                    const insp = getInspection(e.id);
+                    const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                    const quantityPresentPH = insp?.quantityPresentPH || 0;
+                    const quantityExpectedClassique = e.quantityExpectedClassique || 0;
+                    const quantityExpectedPH = e.quantityExpectedPH || 0;
+                    
+                    // Vérifier les quantités
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    
+                    // Vérifier toutes les dates classiques
+                    let dateClassiqueOK = true;
+                    if (e.datesValiditeClassique && e.datesValiditeClassique.length > 0) {
+                        e.datesValiditeClassique.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                                dateClassiqueOK = false;
+                            }
+                        });
+                    }
+                    
+                    // Vérifier toutes les dates pH
+                    let datePHOK = true;
+                    if (e.datesValiditePH && e.datesValiditePH.length > 0) {
+                        e.datesValiditePH.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesPH || insp.datesConformesPH[idx] !== true)) {
+                                datePHOK = false;
+                            }
+                        });
+                    }
+                    
+                    // Non conforme = évalué mais pas conforme
+                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    return isEvaluated && !isConforme;
+                });
+            }
+
+            // Trier par équipe puis par numéro
+            filteredElements.sort((a, b) => {
+                const equipeA = a.equipe || 'ZZZ'; // Les sans équipe à la fin
+                const equipeB = b.equipe || 'ZZZ';
+                if (equipeA !== equipeB) {
+                    return equipeA.localeCompare(equipeB);
+                }
+                const numA = a.numero || '';
+                const numB = b.numero || '';
+                return numA.localeCompare(numB);
+            });
+
+            if (filteredElements.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun rince-œil pour cette équipe</p>';
+                return;
+            }
+
+            let html = '';
+            filteredElements.forEach((element, index) => {
+                const insp = getInspection(element.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityExpectedClassique = element.quantityExpectedClassique || 0;
+                const quantityExpectedPH = element.quantityExpectedPH || 0;
+                const comment = insp?.comment || element.comment || '';
+                
+                const numero = element.numero || `Rince-Œil ${index + 1}`;
+                const typeLabel = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
+                const typeColor = element.type === 'neutraliseur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+                
+                // Vérifier si évalué
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                
+                // Vérifier la conformité (seulement si évalué)
+                let isConforme = false;
+                if (isEvaluated) {
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    
+                    // Vérifier toutes les dates classiques
+                    let dateClassiqueOK = true;
+                    if (element.datesValiditeClassique && element.datesValiditeClassique.length > 0) {
+                        element.datesValiditeClassique.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                                dateClassiqueOK = false;
+                            }
+                        });
+                    }
+                    
+                    // Vérifier toutes les dates pH
+                    let datePHOK = true;
+                    if (element.datesValiditePH && element.datesValiditePH.length > 0) {
+                        element.datesValiditePH.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesPH || insp.datesConformesPH[idx] !== true)) {
+                                datePHOK = false;
+                            }
+                        });
+                    }
+                    
+                    isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                }
+                
+                // Icône et couleur selon le statut
+                let statusIcon, statusColor;
+                if (!isEvaluated) {
+                    statusIcon = '○'; // Cercle vide pour non évalué
+                    statusColor = 'text-gray-400';
+                } else if (isConforme) {
+                    statusIcon = '✓'; // Conforme
+                    statusColor = 'text-green-600';
+                } else {
+                    statusIcon = '⚠'; // Non conforme
+                    statusColor = 'text-red-600';
+                }
+
+                let quantityDisplay = '';
+                if (quantityExpectedClassique > 0) {
+                    quantityDisplay += `Classique: ${quantityPresentClassique}/${quantityExpectedClassique}`;
+                }
+                if (quantityExpectedPH > 0) {
+                    if (quantityDisplay) quantityDisplay += ' | ';
+                    quantityDisplay += `pH: ${quantityPresentPH}/${quantityExpectedPH}`;
+                }
+
+                html += `
+                    <div class="p-2 border rounded hover:bg-gray-50 cursor-pointer" onclick="selectElement('${element.id}')">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-xs">${numero}</span>
+                            <span class="${statusColor} font-bold">${statusIcon}</span>
+                        </div>
+                        <div class="text-[10px] ${typeColor} px-1 py-0.5 rounded mt-1 inline-block">${typeLabel}</div>
+                        <div class="text-[10px] text-gray-600 mt-1">${quantityDisplay}</div>
+                        ${element.equipe ? `<div class="text-[10px] text-gray-500 mt-1">Équipe: ${element.equipe}</div>` : ''}
+                        ${comment ? `<div class="text-[10px] text-gray-500 mt-1 italic truncate" title="${comment}">${comment}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function selectElement(elementId) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+
+            const insp = getInspection(elementId) || { 
+                quantityPresentClassique: 0, 
+                quantityPresentPH: 0, 
+                datesConformesClassique: [],
+                datesConformesPH: [],
+                comment: '' 
+            };
+            const numero = element.numero || 'N/A';
+            const typeLabel = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
+            const quantityExpectedClassique = element.quantityExpectedClassique || 0;
+            const quantityExpectedPH = element.quantityExpectedPH || 0;
+            const datesValiditeClassique = element.datesValiditeClassique || [];
+            const datesValiditePH = element.datesValiditePH || [];
+            const equipe = element.equipe || 'Non définie';
+
+            // Afficher les dates de validité si elles existent
+            let dateHTML = '';
+            
+            // Dates classiques
+            if (datesValiditeClassique.length > 0) {
+                datesValiditeClassique.forEach((dateValidite, index) => {
+                    if (dateValidite) {
+                        const [year, month] = dateValidite.split('-');
+                        const date = new Date(year, month - 1);
+                        const today = new Date();
+                        const isExpired = date < today;
+                        const dateStr = date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' });
+                        const dateColor = isExpired ? 'text-red-600' : 'text-green-600';
+                        
+                        const isConforme = insp.datesConformesClassique && insp.datesConformesClassique[index];
+                        
+                        dateHTML += `
+                            <div class="mb-3 p-2 border rounded ${isExpired ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}">
+                                <p class="text-xs font-medium ${dateColor}">Rince-œil classique ${index + 1} - Validité: ${dateStr}</p>
+                                <p class="text-xs ${dateColor}">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                
+                                <div class="mt-2">
+                                    <label class="block text-xs font-medium mb-1">Date conforme ?</label>
+                                    <div class="flex gap-2">
+                                        <label class="flex items-center cursor-pointer text-xs">
+                                            <input type="radio" name="dateConformeClassique_${elementId}_${index}" value="true" 
+                                                ${isConforme === true ? 'checked' : ''}
+                                                onchange="updateMultipleDateConforme('${elementId}', 'classique', ${index}, true)"
+                                                class="mr-1">
+                                            <span class="text-green-600">✓ Conforme</span>
+                                        </label>
+                                        <label class="flex items-center cursor-pointer text-xs">
+                                            <input type="radio" name="dateConformeClassique_${elementId}_${index}" value="false" 
+                                                ${isConforme === false ? 'checked' : ''}
+                                                onchange="updateMultipleDateConforme('${elementId}', 'classique', ${index}, false)"
+                                                class="mr-1">
+                                            <span class="text-red-600">✗ Non conforme</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            
+            // Dates pH (seulement pour les neutraliseurs)
+            if (element.type === 'neutraliseur' && datesValiditePH.length > 0) {
+                datesValiditePH.forEach((dateValidite, index) => {
+                    if (dateValidite) {
+                        const [year, month] = dateValidite.split('-');
+                        const date = new Date(year, month - 1);
+                        const today = new Date();
+                        const isExpired = date < today;
+                        const dateStr = date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' });
+                        const dateColor = isExpired ? 'text-red-600' : 'text-green-600';
+                        
+                        const isConforme = insp.datesConformesPH && insp.datesConformesPH[index];
+                        
+                        dateHTML += `
+                            <div class="mb-3 p-2 border rounded ${isExpired ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}">
+                                <p class="text-xs font-medium ${dateColor}">Rince-œil pH ${index + 1} - Validité: ${dateStr}</p>
+                                <p class="text-xs ${dateColor}">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                
+                                <div class="mt-2">
+                                    <label class="block text-xs font-medium mb-1">Date conforme ?</label>
+                                    <div class="flex gap-2">
+                                        <label class="flex items-center cursor-pointer text-xs">
+                                            <input type="radio" name="dateConformePH_${elementId}_${index}" value="true" 
+                                                ${isConforme === true ? 'checked' : ''}
+                                                onchange="updateMultipleDateConforme('${elementId}', 'ph', ${index}, true)"
+                                                class="mr-1">
+                                            <span class="text-green-600">✓ Conforme</span>
+                                        </label>
+                                        <label class="flex items-center cursor-pointer text-xs">
+                                            <input type="radio" name="dateConformePH_${elementId}_${index}" value="false" 
+                                                ${isConforme === false ? 'checked' : ''}
+                                                onchange="updateMultipleDateConforme('${elementId}', 'ph', ${index}, false)"
+                                                class="mr-1">
+                                            <span class="text-red-600">✗ Non conforme</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            let quantityFieldsHTML = '';
+            
+            // Toujours afficher le champ classique si quantité prévue > 0
+            if (quantityExpectedClassique > 0) {
+                quantityFieldsHTML += `
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil classique</label>
+                        <input type="number" 
+                            id="quantityPresentClassique_${elementId}"
+                            value="${insp.quantityPresentClassique || 0}" 
+                            min="0" 
+                            max="99"
+                            onchange="updateQuantityPresent('${elementId}', 'classique', this.value)"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedClassique}</p>
+                    </div>
+                `;
+            }
+
+            // Afficher le champ pH si quantité prévue > 0
+            if (quantityExpectedPH > 0) {
+                quantityFieldsHTML += `
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil pH</label>
+                        <input type="number" 
+                            id="quantityPresentPH_${elementId}"
+                            value="${insp.quantityPresentPH || 0}" 
+                            min="0" 
+                            max="99"
+                            onchange="updateQuantityPresent('${elementId}', 'ph', this.value)"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedPH}</p>
+                    </div>
+                `;
+            }
+
+            const content = document.getElementById('notationContent');
+            content.innerHTML = `
+                <div class="text-left">
+                    <h3 class="font-bold text-lg mb-1">${numero}</h3>
+                    <p class="text-sm text-gray-600 mb-1">${typeLabel}</p>
+                    <p class="text-xs text-gray-500 mb-3">Équipe: ${equipe}</p>
+
+                    ${dateHTML}
+
+                    <div class="space-y-4">
+                        ${quantityFieldsHTML}
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Commentaire (optionnel)</label>
+                            <textarea 
+                                id="comment_${elementId}"
+                                onchange="updateComment('${elementId}', this.value)"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Ajouter un commentaire...">${insp.comment || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateMultipleDateConforme(elementId, dateType, index, conforme) {
+            const insp = getInspection(elementId) || {};
+            
+            if (dateType === 'classique') {
+                if (!insp.datesConformesClassique) {
+                    insp.datesConformesClassique = [];
+                }
+                insp.datesConformesClassique[index] = conforme;
+                updateInspection(elementId, {
+                    ...insp,
+                    datesConformesClassique: insp.datesConformesClassique
+                });
+            } else if (dateType === 'ph') {
+                if (!insp.datesConformesPH) {
+                    insp.datesConformesPH = [];
+                }
+                insp.datesConformesPH[index] = conforme;
+                updateInspection(elementId, {
+                    ...insp,
+                    datesConformesPH: insp.datesConformesPH
+                });
+            }
+            
+            // Mettre à jour l'apparence du hotspot
+            addHotspots();
+        }
+
+        function updateDateConforme(elementId, dateType, conforme) {
+            const insp = getInspection(elementId) || {};
+            
+            if (dateType === 'classique') {
+                updateInspection(elementId, {
+                    ...insp,
+                    dateConformeClassique: conforme
+                });
+            } else if (dateType === 'ph') {
+                updateInspection(elementId, {
+                    ...insp,
+                    dateConformePH: conforme
+                });
+            }
+            
+            // Mettre à jour l'apparence du hotspot
+            addHotspots();
+        }
+
+        function updateQuantityPresent(elementId, type, quantity) {
+            const insp = getInspection(elementId) || {};
+            
+            if (type === 'classique') {
+                updateInspection(elementId, {
+                    ...insp,
+                    quantityPresentClassique: parseInt(quantity) || 0
+                });
+            } else if (type === 'ph') {
+                updateInspection(elementId, {
+                    ...insp,
+                    quantityPresentPH: parseInt(quantity) || 0
+                });
+            }
+
+            // Mettre à jour l'apparence du hotspot
+            addHotspots();
+        }
+
+        function updateComment(elementId, comment) {
+            const insp = getInspection(elementId) || {};
+            updateInspection(elementId, {
+                ...insp,
+                comment: comment
+            });
+        }
+
+        // ========================================
+        // AFFICHAGE DU PLAN ET HOTSPOTS
+        // ========================================
+        function loadPlan() {
+            if (!adminConfig.planImage) {
+                document.getElementById('planContainer').classList.add('hidden');
+                document.getElementById('noZoneMessage').classList.remove('hidden');
+                return;
+            }
+
+            const planImage = document.getElementById('planImage');
+            planImage.src = adminConfig.planImage;
+            
+            planImage.onload = () => {
+                document.getElementById('planContainer').classList.remove('hidden');
+                document.getElementById('noZoneMessage').classList.add('hidden');
+                document.getElementById('currentZoneName').textContent = adminConfig.zoneName || 'Plan Rince-Œil';
+                
+                resetZoom();
+                addHotspots();
+            };
+        }
+
+        function addHotspots() {
+            // Supprimer les hotspots existants
+            document.querySelectorAll('.hotspot').forEach(h => h.remove());
+
+            if (!adminConfig.elements || adminConfig.elements.length === 0) return;
+
+            const planWrapper = document.getElementById('planWrapper');
+            const planImage = document.getElementById('planImage');
+            
+            // Récupérer le filtre d'équipe
+            const filterEquipe = document.getElementById('filterEquipe')?.value || '';
+
+            adminConfig.elements.forEach((element, index) => {
+                const insp = getInspection(element.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityExpectedClassique = element.quantityExpectedClassique || 0;
+                const quantityExpectedPH = element.quantityExpectedPH || 0;
+                
+                // Vérifier la conformité (quantités + dates si définies)
+                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                
+                // Vérifier toutes les dates classiques
+                let dateClassiqueOK = true;
+                if (element.datesValiditeClassique && element.datesValiditeClassique.length > 0) {
+                    element.datesValiditeClassique.forEach((date, idx) => {
+                        if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                            dateClassiqueOK = false;
+                        }
+                    });
+                }
+                
+                // Vérifier toutes les dates pH
+                let datePHOK = true;
+                if (element.datesValiditePH && element.datesValiditePH.length > 0) {
+                    element.datesValiditePH.forEach((date, idx) => {
+                        if (date && (!insp?.datesConformesPH || insp.datesConformesPH[idx] !== true)) {
+                            datePHOK = false;
+                        }
+                    });
+                }
+                
+                // Appliquer les filtres
+                let shouldShow = true;
+                
+                // Filtre par équipe
+                if (filterEquipe && element.equipe !== filterEquipe) {
+                    shouldShow = false;
+                }
+                
+                // Filtre par statut
+                if (shouldShow && currentStatusFilter === 'notEvaluated') {
+                    // Non évalué = aucune quantité saisie
+                    if (quantityPresentClassique > 0 || quantityPresentPH > 0) {
+                        shouldShow = false;
+                    }
+                } else if (shouldShow && currentStatusFilter === 'nonConforme') {
+                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    // Non conforme = évalué mais pas conforme
+                    if (!isEvaluated || isConforme) {
+                        shouldShow = false;
+                    }
+                }
+                
+                // Si l'élément ne correspond pas au filtre, ne pas l'afficher
+                if (!shouldShow) {
+                    return;
+                }
+                
+                const hotspot = document.createElement('div');
+                hotspot.className = `hotspot ${element.type}`;
+                // Pas de texte/numéro à l'intérieur
+                
+                // Déterminer le statut de conformité
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                
+                if (isEvaluated) {
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    if (isConforme) {
+                        hotspot.classList.add('conforme');
+                    } else {
+                        hotspot.classList.add('non-conforme');
+                    }
+                }
+                // Si non évalué, pas de classe (reste neutre avec la couleur de base du type)
+
+                hotspot.style.left = `${element.x}%`;
+                hotspot.style.top = `${element.y}%`;
+                hotspot.style.width = `${adminConfig.elementSize || 20}px`;
+                hotspot.style.height = `${adminConfig.elementSize || 20}px`;
+                
+                // Simple clic pour ouvrir les détails
+                hotspot.onclick = () => selectElement(element.id);
+                
+                planWrapper.appendChild(hotspot);
+            });
+        }
+
+        // ========================================
+        // PAN & ZOOM
+        // ========================================
+        function resetZoom() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+        function updateTransform() {
+            const planWrapper = document.getElementById('planWrapper');
+            planWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        // Zoom avec la molette
+        document.getElementById('planContainer').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= delta;
+            scale = Math.max(0.5, Math.min(3, scale));
+            updateTransform();
+        });
+
+        // Pan avec la souris
+        const planImage = document.getElementById('planImage');
+        let panEnabled = false; // Désactivé par défaut à l'accueil
+        
+        planImage.addEventListener('mousedown', (e) => {
+            if (!panEnabled) return; // Ne pas permettre le déplacement à l'accueil
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging || !panEnabled) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // ========================================
+        // MODE ADMIN
+        // ========================================
+        document.getElementById('adminModeBtn').addEventListener('click', () => {
+            isAdminMode = true;
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('adminMode').classList.remove('hidden');
+            loadAdminMode();
+        });
+
+        document.getElementById('exitAdminBtn').addEventListener('click', () => {
+            isAdminMode = false;
+            document.getElementById('adminMode').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            loadPlan();
+            updateKPIs();
+            renderRinceOeilList();
+        });
+
+        function loadAdminMode() {
+            document.getElementById('adminZoneName').value = adminConfig.zoneName || '';
+            document.getElementById('elementSizeSlider').value = adminConfig.elementSize || 20;
+            document.getElementById('elementSizeValue').textContent = adminConfig.elementSize || 20;
+            closeAdminEditPanel(); // Fermer le panneau d'édition
+            
+            if (adminConfig.planImage) {
+                showAdminPlan();
+            }
+        }
+
+        // Événement pour le slider de taille
+        document.getElementById('elementSizeSlider').addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            document.getElementById('elementSizeValue').textContent = size;
+            adminConfig.elementSize = size;
+            
+            // Mettre à jour la taille CSS de tous les éléments
+            updateElementSize(size);
+            saveToStorage();
+        });
+
+        function updateElementSize(size) {
+            // Mettre à jour tous les éléments admin
+            document.querySelectorAll('.admin-element').forEach(elem => {
+                elem.style.width = `${size}px`;
+                elem.style.height = `${size}px`;
+            });
+            
+            // Mettre à jour tous les hotspots d'inspection
+            document.querySelectorAll('.hotspot').forEach(elem => {
+                elem.style.width = `${size}px`;
+                elem.style.height = `${size}px`;
+            });
+        }
+
+        document.getElementById('uploadPlanBtn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        adminConfig.planImage = event.target.result;
+                        showAdminPlan();
+                        saveToStorage();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        });
+
+        function showAdminPlan() {
+            const adminContent = document.getElementById('adminContent');
+            adminContent.innerHTML = `
+                <div class="h-full flex flex-col">
+                    <div class="flex-1 relative" style="min-height: 0;">
+                        <div id="adminPlanWrapper" style="width: 100%; height: 100%; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            <img id="adminPlanImage" src="${adminConfig.planImage}" style="max-width: 100%; max-height: 100%; display: block; user-select: none; pointer-events: none;">
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Empêcher la sélection sur le wrapper
+            const wrapper = document.getElementById('adminPlanWrapper');
+            wrapper.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+            wrapper.addEventListener('contextmenu', (e) => {
+                e.preventDefault(); // Empêcher le menu contextuel par défaut
+                e.stopPropagation();
+            });
+            
+            renderAdminElements();
+        }
+
+        function renderAdminElements() {
+            // Supprimer les éléments existants
+            document.querySelectorAll('.admin-element').forEach(e => e.remove());
+
+            if (!adminConfig.elements || adminConfig.elements.length === 0) return;
+
+            const adminPlanWrapper = document.getElementById('adminPlanWrapper');
+            if (!adminPlanWrapper) return;
+
+            adminConfig.elements.forEach((element, index) => {
+                const elem = document.createElement('div');
+                elem.className = `admin-element ${element.type}`;
+                // Pas de texte/numéro
+                elem.style.left = `${element.x}%`;
+                elem.style.top = `${element.y}%`;
+                elem.style.width = `${adminConfig.elementSize || 20}px`;
+                elem.style.height = `${adminConfig.elementSize || 20}px`;
+                elem.dataset.id = element.id;
+
+                // Drag & drop
+                elem.addEventListener('mousedown', (e) => {
+                    // Ignorer le clic droit
+                    if (e.button === 2) return;
+                    e.stopPropagation();
+                    startDrag(e);
+                });
+                
+                // Clic droit pour ouvrir le panneau d'édition
+                elem.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openAdminEditPanel(element.id);
+                });
+
+                adminPlanWrapper.appendChild(elem);
+            });
+        }
+
+        // Fonctions pour gérer les champs de dates multiples
+        function updateDateFieldsClassique() {
+            const quantity = parseInt(document.getElementById('adminEditQuantityClassique').value) || 0;
+            const container = document.getElementById('adminDateClassiqueContainer');
+            const element = adminConfig.elements.find(e => e.id === currentEditingElement);
+            const existingDates = element ? (element.datesValiditeClassique || []) : [];
+            
+            container.innerHTML = '';
+            for (let i = 0; i < quantity; i++) {
+                const dateValue = existingDates[i] || '';
+                container.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs w-24">Rince-œil ${i + 1}:</label>
+                        <input type="month" 
+                            id="dateClassique_${i}" 
+                            value="${dateValue}"
+                            class="flex-1 px-2 py-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                `;
+            }
+        }
+
+        function updateDateFieldsPH() {
+            const quantity = parseInt(document.getElementById('adminEditQuantityPH').value) || 0;
+            const container = document.getElementById('adminDatePHContainer');
+            const element = adminConfig.elements.find(e => e.id === currentEditingElement);
+            const existingDates = element ? (element.datesValiditePH || []) : [];
+            
+            container.innerHTML = '';
+            for (let i = 0; i < quantity; i++) {
+                const dateValue = existingDates[i] || '';
+                container.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs w-24">Rince-œil ${i + 1}:</label>
+                        <input type="month" 
+                            id="datePH_${i}" 
+                            value="${dateValue}"
+                            class="flex-1 px-2 py-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                `;
+            }
+        }
+
+        function openAdminEditPanel(elementId) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+
+            currentEditingElement = elementId;
+            const typeLabel = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
+
+            document.getElementById('adminEditNumero').value = element.numero || '';
+            document.getElementById('adminEditTypeModal').value = typeLabel;
+            document.getElementById('adminEditQuantityClassique').value = element.quantityExpectedClassique || 0;
+            document.getElementById('adminEditQuantityPH').value = element.quantityExpectedPH || 0;
+            document.getElementById('adminEditEquipe').value = element.equipe || '';
+            document.getElementById('adminEditCommentModal').value = element.comment || '';
+
+            // Générer les champs de dates selon les quantités
+            updateDateFieldsClassique();
+            updateDateFieldsPH();
+
+            // Afficher/masquer les champs pH et date pH selon le type
+            const phQtyDiv = document.getElementById('adminQuantityPHDiv');
+            const phDateDiv = document.getElementById('adminDatePHDiv');
+            if (element.type === 'neutraliseur') {
+                phQtyDiv.style.display = 'block';
+                phDateDiv.style.display = 'block';
+            } else {
+                phQtyDiv.style.display = 'none';
+                phDateDiv.style.display = 'none';
+            }
+
+            document.getElementById('adminEditModal').classList.add('active');
+        }
+
+        function closeAdminEditPanel() {
+            currentEditingElement = null;
+            document.getElementById('adminEditModal').classList.remove('active');
+        }
+
+        let draggedElement = null;
+
+        function startDrag(e) {
+            e.preventDefault(); // Empêcher la sélection
+            draggedElement = e.target;
+            e.target.style.cursor = 'grabbing';
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!draggedElement) return;
+            
+            e.preventDefault(); // Empêcher la sélection pendant le déplacement
+            
+            const adminPlanWrapper = document.getElementById('adminPlanWrapper');
+            if (!adminPlanWrapper) return;
+
+            const rect = adminPlanWrapper.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+            draggedElement.style.left = `${x}%`;
+            draggedElement.style.top = `${y}%`;
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!draggedElement) return;
+
+            const adminPlanWrapper = document.getElementById('adminPlanWrapper');
+            if (!adminPlanWrapper) return;
+
+            const rect = adminPlanWrapper.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+            const elementId = draggedElement.dataset.id;
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (element) {
+                element.x = Math.max(0, Math.min(100, x));
+                element.y = Math.max(0, Math.min(100, y));
+                saveToStorage();
+            }
+
+            draggedElement.style.cursor = 'move';
+            draggedElement = null;
+        });
+
+        document.getElementById('addNeutraliseurBtn').addEventListener('click', () => {
+            addElement('neutraliseur');
+        });
+
+        document.getElementById('addStandardBtn').addEventListener('click', () => {
+            addElement('standard');
+        });
+
+        function addElement(type) {
+            if (!adminConfig.planImage) {
+                alert('Veuillez d\'abord charger un plan');
+                return;
+            }
+
+            const id = `${type}_${Date.now()}`;
+            
+            // Définir les valeurs par défaut selon le type
+            let quantityClassique, quantityPH;
+            if (type === 'neutraliseur') {
+                // Neutraliseur pH : 1 classique + 1 pH
+                quantityClassique = 1;
+                quantityPH = 1;
+            } else {
+                // Standard : 2 classiques + 0 pH
+                quantityClassique = 2;
+                quantityPH = 0;
+            }
+            
+            adminConfig.elements.push({
+                id: id,
+                type: type,
+                x: 50,
+                y: 50,
+                numero: '',
+                quantityExpectedClassique: quantityClassique,
+                quantityExpectedPH: quantityPH,
+                datesValiditeClassique: [],
+                datesValiditePH: [],
+                equipe: '',
+                comment: ''
+            });
+            saveToStorage();
+            renderAdminElements();
+        }
+
+        // Événements du panneau d'édition admin (Modal)
+        document.getElementById('closeAdminEditModal').addEventListener('click', () => {
+            closeAdminEditPanel();
+        });
+
+        document.getElementById('adminSaveEditModalBtn').addEventListener('click', () => {
+            if (!currentEditingElement) return;
+
+            const element = adminConfig.elements.find(e => e.id === currentEditingElement);
+            if (element) {
+                element.numero = document.getElementById('adminEditNumero').value || '';
+                element.quantityExpectedClassique = parseInt(document.getElementById('adminEditQuantityClassique').value) || 0;
+                element.quantityExpectedPH = parseInt(document.getElementById('adminEditQuantityPH').value) || 0;
+                
+                // Récupérer toutes les dates classiques
+                element.datesValiditeClassique = [];
+                for (let i = 0; i < element.quantityExpectedClassique; i++) {
+                    const dateInput = document.getElementById(`dateClassique_${i}`);
+                    if (dateInput) {
+                        element.datesValiditeClassique.push(dateInput.value || '');
+                    }
+                }
+                
+                // Récupérer toutes les dates pH
+                element.datesValiditePH = [];
+                for (let i = 0; i < element.quantityExpectedPH; i++) {
+                    const dateInput = document.getElementById(`datePH_${i}`);
+                    if (dateInput) {
+                        element.datesValiditePH.push(dateInput.value || '');
+                    }
+                }
+                
+                element.equipe = document.getElementById('adminEditEquipe').value || '';
+                element.comment = document.getElementById('adminEditCommentModal').value || '';
+                saveToStorage();
+                alert('Modifications enregistrées !');
+                closeAdminEditPanel();
+                renderAdminElements();
+            }
+        });
+
+        document.getElementById('adminDeleteModalBtn').addEventListener('click', () => {
+            if (!currentEditingElement) return;
+
+            const element = adminConfig.elements.find(e => e.id === currentEditingElement);
+            const numero = element.numero || 'ce rince-œil';
+
+            if (confirm(`Supprimer ${numero} ?`)) {
+                adminConfig.elements = adminConfig.elements.filter(e => e.id !== currentEditingElement);
+                saveToStorage();
+                renderAdminElements();
+                closeAdminEditPanel();
+            }
+        });
+
+        document.getElementById('adminZoneName').addEventListener('change', (e) => {
+            adminConfig.zoneName = e.target.value;
+            saveToStorage();
+        });
+
+        document.getElementById('saveConfigBtn').addEventListener('click', () => {
+            saveToStorage();
+            alert('Configuration sauvegardée !');
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (confirm('Êtes-vous sûr de vouloir tout effacer ? Cette action est irréversible.')) {
+                adminConfig = {
+                    zoneName: '',
+                    planImage: null,
+                    elementSize: 20,
+                    elements: []
+                };
+                inspections = [];
+                saveToStorage();
+                loadAdminMode();
+                alert('Tout a été effacé !');
+            }
+        });
+
+        // ========================================
+        // TABLEAU DE BORD
+        // ========================================
+        document.getElementById('dashboardBtn').addEventListener('click', () => {
+            showDashboard();
+        });
+
+        document.getElementById('closeDashboardBtn').addEventListener('click', () => {
+            document.getElementById('dashboardModal').classList.remove('active');
+        });
+
+        function showDashboard() {
+            const neutraliseurs = adminConfig.elements.filter(e => e.type === 'neutraliseur');
+            const standards = adminConfig.elements.filter(e => e.type === 'standard');
+            
+            // Neutraliseurs
+            let neutraliseursConformes = 0;
+            let neutraliseursNonConformes = 0;
+            let neutraliseursNonEvalues = 0;
+            
+            neutraliseurs.forEach(e => {
+                const insp = getInspection(e.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityExpectedClassique = e.quantityExpectedClassique || 0;
+                const quantityExpectedPH = e.quantityExpectedPH || 0;
+                
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                
+                if (!isEvaluated) {
+                    neutraliseursNonEvalues++;
+                } else {
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    
+                    // Vérifier toutes les dates classiques
+                    let dateClassiqueOK = true;
+                    if (e.datesValiditeClassique && e.datesValiditeClassique.length > 0) {
+                        e.datesValiditeClassique.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                                dateClassiqueOK = false;
+                            }
+                        });
+                    }
+                    
+                    // Vérifier toutes les dates pH
+                    let datePHOK = true;
+                    if (e.datesValiditePH && e.datesValiditePH.length > 0) {
+                        e.datesValiditePH.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesPH || insp.datesConformesPH[idx] !== true)) {
+                                datePHOK = false;
+                            }
+                        });
+                    }
+                    
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    
+                    if (isConforme) {
+                        neutraliseursConformes++;
+                    } else {
+                        neutraliseursNonConformes++;
+                    }
+                }
+            });
+
+            // Standards
+            let standardsConformes = 0;
+            let standardsNonConformes = 0;
+            let standardsNonEvalues = 0;
+            
+            standards.forEach(e => {
+                const insp = getInspection(e.id);
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityExpectedClassique = e.quantityExpectedClassique || 0;
+                
+                const isEvaluated = quantityPresentClassique > 0;
+                
+                if (!isEvaluated) {
+                    standardsNonEvalues++;
+                } else {
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    
+                    // Vérifier toutes les dates classiques
+                    let dateClassiqueOK = true;
+                    if (e.datesValiditeClassique && e.datesValiditeClassique.length > 0) {
+                        e.datesValiditeClassique.forEach((date, idx) => {
+                            if (date && (!insp?.datesConformesClassique || insp.datesConformesClassique[idx] !== true)) {
+                                dateClassiqueOK = false;
+                            }
+                        });
+                    }
+                    
+                    const isConforme = classiqueOK && dateClassiqueOK;
+                    
+                    if (isConforme) {
+                        standardsConformes++;
+                    } else {
+                        standardsNonConformes++;
+                    }
+                }
+            });
+
+            const neutraliseursEvalues = neutraliseurs.length - neutraliseursNonEvalues;
+            const standardsEvalues = standards.length - standardsNonEvalues;
+            const totalEvalues = neutraliseursEvalues + standardsEvalues;
+            
+            document.getElementById('dashNeutraliseur').textContent = 
+                neutraliseursEvalues > 0 
+                    ? `${neutraliseursConformes} / ${neutraliseursEvalues} (${neutraliseurs.length} total)`
+                    : `0 / ${neutraliseurs.length} (non évalués)`;
+            document.getElementById('dashStandard').textContent = 
+                standardsEvalues > 0 
+                    ? `${standardsConformes} / ${standardsEvalues} (${standards.length} total)`
+                    : `0 / ${standards.length} (non évalués)`;
+            document.getElementById('dashTotal').textContent = 
+                totalEvalues > 0
+                    ? `${neutraliseursConformes + standardsConformes} / ${totalEvalues} (${adminConfig.elements.length} total)`
+                    : `0 / ${adminConfig.elements.length} (non évalués)`;
+
+            // Chart
+            const ctx = document.getElementById('progressChart');
+            if (window.dashChart) {
+                window.dashChart.destroy();
+            }
+            window.dashChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Neutraliseur pH', 'Standard'],
+                    datasets: [{
+                        label: 'Conformes',
+                        data: [neutraliseursConformes, standardsConformes],
+                        backgroundColor: ['#22c55e', '#22c55e']
+                    }, {
+                        label: 'Non conformes',
+                        data: [neutraliseursNonConformes, standardsNonConformes],
+                        backgroundColor: ['#ef4444', '#ef4444']
+                    }, {
+                        label: 'Non évalués',
+                        data: [neutraliseursNonEvalues, standardsNonEvalues],
+                        backgroundColor: ['#9ca3af', '#9ca3af']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    }
+                }
+            });
+
+            document.getElementById('dashboardModal').classList.add('active');
+        }
+
+        // ========================================
+        // EXPORT
+        // ========================================
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            document.getElementById('exportModal').classList.add('active');
+        });
+
+        document.getElementById('closeExportBtn').addEventListener('click', () => {
+            document.getElementById('exportModal').classList.remove('active');
+        });
+
+        document.getElementById('exportJSONBtn').addEventListener('click', () => {
+            const data = {
+                campaign: currentCampaign,
+                config: adminConfig,
+                inspections: inspections
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rince-oeil_${currentCampaign}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('exportCSVBtn').addEventListener('click', () => {
+            let csv = 'Numéro,Type,Équipe,Qté prévue Classique,Qté présente Classique,Qté prévue pH,Qté présente pH,Conforme,Commentaire\n';
+            adminConfig.elements.forEach((element, index) => {
+                const insp = getInspection(element.id) || {};
+                const numero = element.numero || `Rince-Œil ${index + 1}`;
+                const type = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
+                const equipe = element.equipe || 'Non définie';
+                const quantityExpectedClassique = element.quantityExpectedClassique || 0;
+                const quantityPresentClassique = insp.quantityPresentClassique || 0;
+                const quantityExpectedPH = element.quantityExpectedPH || 0;
+                const quantityPresentPH = insp.quantityPresentPH || 0;
+                
+                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                const conforme = (classiqueOK && phOK && (quantityPresentClassique > 0 || quantityPresentPH > 0)) ? 'Oui' : 'Non';
+                
+                const comment = (insp.comment || element.comment || '').replace(/,/g, ';').replace(/\n/g, ' ');
+                csv += `"${numero}",${type},"${equipe}",${quantityExpectedClassique},${quantityPresentClassique},${quantityExpectedPH},${quantityPresentPH},${conforme},"${comment}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rince-oeil_${currentCampaign}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('exportPDFBtn').addEventListener('click', () => {
+            alert('Export PDF - Fonctionnalité à venir');
+        });
+
+        // Import/Export config
+        document.getElementById('exportLibraryBtn').addEventListener('click', () => {
+            const data = {
+                zoneName: adminConfig.zoneName,
+                planImage: adminConfig.planImage,
+                elementSize: adminConfig.elementSize,
+                elements: adminConfig.elements
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `TICP.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('importLibraryBtn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            adminConfig.zoneName = data.zoneName || '';
+                            adminConfig.planImage = data.planImage || null;
+                            adminConfig.elementSize = data.elementSize || 20;
+                            adminConfig.elements = data.elements || [];
+                            saveToStorage();
+                            loadAdminMode();
+                            alert('Configuration importée avec succès !');
+                        } catch (error) {
+                            alert('Erreur lors de l\'import : fichier invalide');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        });
+
+        // ========================================
+        // MODE SOMBRE
+        // ========================================
+        document.getElementById('darkModeToggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark-mode');
+            const isDark = document.documentElement.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            document.getElementById('darkModeToggle').textContent = isDark ? '☀️' : '🌙';
+        });
+
+        // Charger le mode sombre sauvegardé
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark-mode');
+            document.getElementById('darkModeToggle').textContent = '☀️';
+        }
+
+        // ========================================
+        // CAMPAGNE
+        // ========================================
+        document.getElementById('campaignSelect').addEventListener('change', (e) => {
+            currentCampaign = e.target.value;
+            saveToStorage();
+            updateKPIs();
+            renderRinceOeilList();
+        });
+
+        // Fermer le panneau de notation
+        document.getElementById('notationCloseBtn').addEventListener('click', () => {
+            const notationPanel = document.getElementById('notationPanel');
+            const reopenBtn = document.getElementById('reopenNotationBtn');
+            notationPanel.classList.add('hidden');
+            reopenBtn.classList.remove('hidden');
+        });
+
+        // Réouvrir le panneau de notation
+        document.getElementById('reopenNotationBtn').addEventListener('click', () => {
+            const notationPanel = document.getElementById('notationPanel');
+            const reopenBtn = document.getElementById('reopenNotationBtn');
+            notationPanel.classList.remove('hidden');
+            reopenBtn.classList.add('hidden');
+        });
+
+        // Fermer le panneau de gauche (indicateurs)
+        document.getElementById('leftPanelCloseBtn').addEventListener('click', () => {
+            const leftPanel = document.getElementById('leftPanel');
+            const reopenBtn = document.getElementById('reopenLeftPanelBtn');
+            leftPanel.classList.add('hidden');
+            reopenBtn.classList.remove('hidden');
+        });
+
+        // Réouvrir le panneau de gauche (indicateurs)
+        document.getElementById('reopenLeftPanelBtn').addEventListener('click', () => {
+            const leftPanel = document.getElementById('leftPanel');
+            const reopenBtn = document.getElementById('reopenLeftPanelBtn');
+            leftPanel.classList.remove('hidden');
+            reopenBtn.classList.add('hidden');
+        });
+
+        // ========================================
+        // CHARGEMENT AUTOMATIQUE TICP.json
+        // ========================================
+        async function loadTICPConfig() {
+            try {
+                // Essayer de charger le fichier TICP.json depuis le même dossier que le HTML
+                const response = await fetch('./TICP.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.zoneName) adminConfig.zoneName = data.zoneName;
+                    if (data.planImage) adminConfig.planImage = data.planImage;
+                    if (data.elementSize) adminConfig.elementSize = data.elementSize;
+                    if (data.elements) adminConfig.elements = data.elements;
+                    
+                    // Sauvegarder dans localStorage
+                    saveToStorage();
+                    
+                    console.log('Configuration TICP.json chargée avec succès');
+                    return true;
+                }
+            } catch (e) {
+                console.log('Fichier TICP.json non trouvé ou erreur de chargement, utilisation de localStorage');
+            }
+            return false;
+        }
+
+        // ========================================
+        // INITIALISATION
+        // ========================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Charger d'abord depuis localStorage
+            loadFromStorage();
+            
+            // Si pas de configuration en localStorage, essayer de charger TICP.json
+            if (!adminConfig.planImage || adminConfig.elements.length === 0) {
+                await loadTICPConfig();
+            }
+            
+            loadPlan();
+            updateKPIs();
+            renderRinceOeilList();
+        });
+    </script>
+</body>
+</html>
