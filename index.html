@@ -1434,6 +1434,15 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md"
                                 placeholder="Ajouter un commentaire...">${insp.comment || ''}</textarea>
                         </div>
+
+                        <div class="pt-3 border-t border-gray-200">
+                            <button 
+                                onclick="deleteInspection('${elementId}')"
+                                class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium text-sm">
+                                🗑️ Supprimer l'inspection
+                            </button>
+                            <p class="text-xs text-gray-500 mt-1 text-center">Supprime uniquement les données d'inspection (quantités, dates conformes, commentaire)</p>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1630,6 +1639,33 @@
             addHotspots();
             updateKPIs();
             renderRinceOeilList();
+        }
+
+        // Fonction pour supprimer l'inspection en cours d'un rince-œil
+        function deleteInspection(elementId) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cette inspection ?\n\nCela supprimera uniquement les données d\'inspection (quantités, dates conformes, commentaire) pour cette campagne.\nLes dates de validité et informations du rince-œil seront conservées.')) {
+                return;
+            }
+            
+            // Trouver l'index de l'inspection à supprimer
+            const inspectionIndex = inspections.findIndex(i => 
+                i.campaign === currentCampaign && 
+                i.elementId === elementId
+            );
+            
+            if (inspectionIndex !== -1) {
+                // Supprimer l'inspection
+                inspections.splice(inspectionIndex, 1);
+                saveToStorage();
+                
+                // Rafraîchir l'affichage
+                selectElement(elementId);
+                addHotspots();
+                updateKPIs();
+                renderRinceOeilList();
+                
+                console.log('🗑️ Inspection supprimée pour:', elementId);
+            }
         }
 
         // ========================================
