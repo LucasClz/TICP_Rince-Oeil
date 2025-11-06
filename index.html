@@ -1131,6 +1131,16 @@
             const element = adminConfig.elements.find(e => e.id === elementId);
             if (!element) return;
 
+            // Ouvrir automatiquement le panneau d'inspection s'il est fermé
+            const notationPanel = document.getElementById('notationPanel');
+            const reopenBtn = document.getElementById('reopenNotationBtn');
+            if (notationPanel.classList.contains('hidden')) {
+                notationPanel.classList.remove('hidden');
+                reopenBtn.classList.add('hidden');
+                // Réajuster la taille des éléments
+                applyDynamicElementSize();
+            }
+
             const insp = getInspection(elementId) || { 
                 quantityPresentClassique: 0, 
                 quantityPresentPH: 0, 
