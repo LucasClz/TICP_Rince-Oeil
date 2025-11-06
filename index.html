@@ -1362,9 +1362,57 @@
             const content = document.getElementById('notationContent');
             content.innerHTML = `
                 <div class="text-left">
-                    <h3 class="font-bold text-lg mb-1">${numero}</h3>
-                    <p class="text-sm text-gray-600 mb-1">${typeLabel}</p>
-                    <p class="text-xs text-gray-500 mb-3">Équipe: ${equipe}</p>
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium mb-1">Numéro de rince-œil</label>
+                        <input type="text" 
+                            value="${numero}"
+                            onchange="updateElementNumero('${elementId}', this.value)"
+                            class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md font-bold"
+                            placeholder="Ex: RO-01">
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 mb-2">${typeLabel}</p>
+                    
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium mb-1">Équipe responsable</label>
+                        <select 
+                            onchange="updateElementEquipe('${elementId}', this.value)"
+                            class="w-full px-2 py-1 text-xs border border-gray-300 rounded-md">
+                            <option value="">Non définie</option>
+                            <option value="MR1" ${equipe === 'MR1' ? 'selected' : ''}>MR1</option>
+                            <option value="MR2" ${equipe === 'MR2' ? 'selected' : ''}>MR2</option>
+                            <option value="MR3" ${equipe === 'MR3' ? 'selected' : ''}>MR3</option>
+                            <option value="MR4" ${equipe === 'MR4' ? 'selected' : ''}>MR4</option>
+                            <option value="MR5" ${equipe === 'MR5' ? 'selected' : ''}>MR5</option>
+                            <option value="MR6" ${equipe === 'MR6' ? 'selected' : ''}>MR6</option>
+                            <option value="MR7" ${equipe === 'MR7' ? 'selected' : ''}>MR7</option>
+                            <option value="MR8" ${equipe === 'MR8' ? 'selected' : ''}>MR8</option>
+                            <option value="MR9" ${equipe === 'MR9' ? 'selected' : ''}>MR9</option>
+                            <option value="MR10" ${equipe === 'MR10' ? 'selected' : ''}>MR10</option>
+                            <option value="MR11" ${equipe === 'MR11' ? 'selected' : ''}>MR11</option>
+                            <option value="MR12" ${equipe === 'MR12' ? 'selected' : ''}>MR12</option>
+                            <option value="MR13" ${equipe === 'MR13' ? 'selected' : ''}>MR13</option>
+                            <option value="MR14" ${equipe === 'MR14' ? 'selected' : ''}>MR14</option>
+                            <option value="MR15" ${equipe === 'MR15' ? 'selected' : ''}>MR15</option>
+                            <option value="SC1" ${equipe === 'SC1' ? 'selected' : ''}>SC1</option>
+                            <option value="SC2" ${equipe === 'SC2' ? 'selected' : ''}>SC2</option>
+                            <option value="SC3" ${equipe === 'SC3' ? 'selected' : ''}>SC3</option>
+                            <option value="PRM1" ${equipe === 'PRM1' ? 'selected' : ''}>PRM1</option>
+                            <option value="PRM2" ${equipe === 'PRM2' ? 'selected' : ''}>PRM2</option>
+                            <option value="PRM3" ${equipe === 'PRM3' ? 'selected' : ''}>PRM3</option>
+                            <option value="PRM4" ${equipe === 'PRM4' ? 'selected' : ''}>PRM4</option>
+                            <option value="PRM5" ${equipe === 'PRM5' ? 'selected' : ''}>PRM5</option>
+                            <option value="PRM6" ${equipe === 'PRM6' ? 'selected' : ''}>PRM6</option>
+                            <option value="PRM7" ${equipe === 'PRM7' ? 'selected' : ''}>PRM7</option>
+                            <option value="PRM8" ${equipe === 'PRM8' ? 'selected' : ''}>PRM8</option>
+                            <option value="PRM9" ${equipe === 'PRM9' ? 'selected' : ''}>PRM9</option>
+                            <option value="PRM10" ${equipe === 'PRM10' ? 'selected' : ''}>PRM10</option>
+                            <option value="PRM11" ${equipe === 'PRM11' ? 'selected' : ''}>PRM11</option>
+                            <option value="Gardien" ${equipe === 'Gardien' ? 'selected' : ''}>Gardien</option>
+                            <option value="IO" ${equipe === 'IO' ? 'selected' : ''}>IO</option>
+                            <option value="Lavage" ${equipe === 'Lavage' ? 'selected' : ''}>Lavage</option>
+                        </select>
+                    </div>
 
                     <button 
                         onclick="validateAllForElement('${elementId}')"
@@ -1495,6 +1543,28 @@
             // Rafraîchir l'affichage
             selectElement(elementId);
             addHotspots();
+            renderRinceOeilList();
+        }
+
+        // Fonction pour mettre à jour le numéro d'un rince-œil
+        function updateElementNumero(elementId, newNumero) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+            
+            element.numero = newNumero;
+            saveToStorage();
+            // Rafraîchir l'affichage
+            renderRinceOeilList();
+        }
+
+        // Fonction pour mettre à jour l'équipe d'un rince-œil
+        function updateElementEquipe(elementId, newEquipe) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+            
+            element.equipe = newEquipe;
+            saveToStorage();
+            // Rafraîchir l'affichage
             renderRinceOeilList();
         }
 
