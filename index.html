@@ -1265,6 +1265,64 @@
                 });
             }
 
+            // Ajouter des champs pour créer de nouvelles dates classiques
+            if (quantityExpectedClassique > 0) {
+                const nbDatesClassiques = datesValiditeClassique.filter(d => d).length;
+                if (nbDatesClassiques < quantityExpectedClassique) {
+                    dateHTML += `
+                        <div class="mb-3 p-2 border border-dashed border-gray-300 rounded bg-gray-50">
+                            <p class="text-xs font-medium text-gray-600 mb-2">Ajouter des dates de validité (Classique)</p>
+                            <div id="newDatesClassique_${elementId}">
+                    `;
+                    
+                    for (let i = nbDatesClassiques; i < quantityExpectedClassique; i++) {
+                        dateHTML += `
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium mb-1">Rince-œil classique ${i + 1}:</label>
+                                <input type="month" 
+                                    id="newDateClassique_${elementId}_${i}"
+                                    onchange="addNewElementDate('${elementId}', 'classique', ${i}, this.value)"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+                            </div>
+                        `;
+                    }
+                    
+                    dateHTML += `
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Ajouter des champs pour créer de nouvelles dates pH
+            if (element.type === 'neutraliseur' && quantityExpectedPH > 0) {
+                const nbDatesPH = datesValiditePH.filter(d => d).length;
+                if (nbDatesPH < quantityExpectedPH) {
+                    dateHTML += `
+                        <div class="mb-3 p-2 border border-dashed border-gray-300 rounded bg-gray-50">
+                            <p class="text-xs font-medium text-gray-600 mb-2">Ajouter des dates de validité (pH)</p>
+                            <div id="newDatesPH_${elementId}">
+                    `;
+                    
+                    for (let i = nbDatesPH; i < quantityExpectedPH; i++) {
+                        dateHTML += `
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium mb-1">Rince-œil pH ${i + 1}:</label>
+                                <input type="month" 
+                                    id="newDatePH_${elementId}_${i}"
+                                    onchange="addNewElementDate('${elementId}', 'ph', ${i}, this.value)"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+                            </div>
+                        `;
+                    }
+                    
+                    dateHTML += `
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
             let quantityFieldsHTML = '';
             
             // Toujours afficher le champ classique si quantité prévue > 0
@@ -1404,6 +1462,40 @@
                 ...insp,
                 comment: comment
             });
+        }
+
+        // Fonction pour ajouter une nouvelle date de validité
+        function addNewElementDate(elementId, dateType, index, newDate) {
+            if (!newDate) return; // Ne rien faire si la date est vide
+            
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+            
+            if (dateType === 'classique') {
+                if (!element.datesValiditeClassique) {
+                    element.datesValiditeClassique = [];
+                }
+                // Remplir les trous avec des chaînes vides si nécessaire
+                while (element.datesValiditeClassique.length <= index) {
+                    element.datesValiditeClassique.push('');
+                }
+                element.datesValiditeClassique[index] = newDate;
+            } else if (dateType === 'ph') {
+                if (!element.datesValiditePH) {
+                    element.datesValiditePH = [];
+                }
+                // Remplir les trous avec des chaînes vides si nécessaire
+                while (element.datesValiditePH.length <= index) {
+                    element.datesValiditePH.push('');
+                }
+                element.datesValiditePH[index] = newDate;
+            }
+            
+            saveToStorage();
+            // Rafraîchir l'affichage
+            selectElement(elementId);
+            addHotspots();
+            renderRinceOeilList();
         }
 
         // Fonction pour mettre à jour une date de validité
