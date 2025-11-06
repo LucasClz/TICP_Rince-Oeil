@@ -1174,8 +1174,18 @@
                         
                         dateHTML += `
                             <div class="mb-3 p-2 border rounded ${isExpired ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}">
-                                <p class="text-xs font-medium ${dateColor}">Rince-œil classique ${index + 1} - Validité: ${dateStr}</p>
-                                <p class="text-xs ${dateColor}">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs font-medium ${dateColor}">Rince-œil classique ${index + 1}</p>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <label class="block text-xs font-medium mb-1">Date de validité:</label>
+                                    <input type="month" 
+                                        value="${dateValidite}"
+                                        onchange="updateElementDate('${elementId}', 'classique', ${index}, this.value)"
+                                        class="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+                                    <p class="text-xs ${dateColor} mt-1">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                </div>
                                 
                                 <div class="mt-2">
                                     <label class="block text-xs font-medium mb-1">Date conforme ?</label>
@@ -1217,8 +1227,18 @@
                         
                         dateHTML += `
                             <div class="mb-3 p-2 border rounded ${isExpired ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}">
-                                <p class="text-xs font-medium ${dateColor}">Rince-œil pH ${index + 1} - Validité: ${dateStr}</p>
-                                <p class="text-xs ${dateColor}">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs font-medium ${dateColor}">Rince-œil pH ${index + 1}</p>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <label class="block text-xs font-medium mb-1">Date de validité:</label>
+                                    <input type="month" 
+                                        value="${dateValidite}"
+                                        onchange="updateElementDate('${elementId}', 'ph', ${index}, this.value)"
+                                        class="w-full px-2 py-1 text-xs border border-gray-300 rounded">
+                                    <p class="text-xs ${dateColor} mt-1">${isExpired ? '⚠ Date expirée' : '✓ Date valide'}</p>
+                                </div>
                                 
                                 <div class="mt-2">
                                     <label class="block text-xs font-medium mb-1">Date conforme ?</label>
@@ -1287,6 +1307,12 @@
                     <h3 class="font-bold text-lg mb-1">${numero}</h3>
                     <p class="text-sm text-gray-600 mb-1">${typeLabel}</p>
                     <p class="text-xs text-gray-500 mb-3">Équipe: ${equipe}</p>
+
+                    <button 
+                        onclick="validateAllForElement('${elementId}')"
+                        class="w-full mb-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium text-sm">
+                        ✓ Tout valider (conforme)
+                    </button>
 
                     ${dateHTML}
 
@@ -1378,6 +1404,70 @@
                 ...insp,
                 comment: comment
             });
+        }
+
+        // Fonction pour mettre à jour une date de validité
+        function updateElementDate(elementId, dateType, index, newDate) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+            
+            if (dateType === 'classique') {
+                if (!element.datesValiditeClassique) {
+                    element.datesValiditeClassique = [];
+                }
+                element.datesValiditeClassique[index] = newDate;
+            } else if (dateType === 'ph') {
+                if (!element.datesValiditePH) {
+                    element.datesValiditePH = [];
+                }
+                element.datesValiditePH[index] = newDate;
+            }
+            
+            saveToStorage();
+            // Rafraîchir l'affichage
+            selectElement(elementId);
+            addHotspots();
+            renderRinceOeilList();
+        }
+
+        // Fonction "Tout valider" - met tout comme conforme automatiquement
+        function validateAllForElement(elementId) {
+            const element = adminConfig.elements.find(e => e.id === elementId);
+            if (!element) return;
+            
+            const insp = getInspection(elementId) || {};
+            
+            // Mettre les quantités présentes égales aux quantités prévues
+            insp.quantityPresentClassique = element.quantityExpectedClassique || 0;
+            insp.quantityPresentPH = element.quantityExpectedPH || 0;
+            
+            // Mettre toutes les dates classiques comme conformes
+            insp.datesConformesClassique = [];
+            if (element.datesValiditeClassique) {
+                element.datesValiditeClassique.forEach((date, index) => {
+                    if (date) {
+                        insp.datesConformesClassique[index] = true;
+                    }
+                });
+            }
+            
+            // Mettre toutes les dates pH comme conformes
+            insp.datesConformesPH = [];
+            if (element.datesValiditePH) {
+                element.datesValiditePH.forEach((date, index) => {
+                    if (date) {
+                        insp.datesConformesPH[index] = true;
+                    }
+                });
+            }
+            
+            updateInspection(elementId, insp);
+            
+            // Rafraîchir l'affichage
+            selectElement(elementId);
+            addHotspots();
+            updateKPIs();
+            renderRinceOeilList();
         }
 
         // ========================================
