@@ -1032,7 +1032,8 @@
                     const accessibiliteOK = insp?.accessibilite === true;
                     
                     // Non conforme = évalué mais pas conforme
-                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null);
+                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                     const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     return isEvaluated && !isConforme;
                 });
@@ -1068,8 +1069,9 @@
                 const typeLabel = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
                 const typeColor = element.type === 'neutraliseur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
                 
-                // Vérifier si évalué
-                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null);
+                // Vérifier si évalué - dès qu'une quantité est renseignée (même 0)
+                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                 
                 // Vérifier la conformité (seulement si évalué)
                 let isConforme = false;
@@ -1100,7 +1102,7 @@
                         });
                     }
                     
-                    // Vérifier les nouveaux critères
+                    // Vérifier les nouveaux critères - DOIVENT être explicitement à true pour être OK
                     const etatBoiteOK = insp?.etatBoite === true;
                     const accessibiliteOK = insp?.accessibilite === true;
                     
