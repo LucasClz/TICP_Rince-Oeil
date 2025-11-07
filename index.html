@@ -1013,11 +1013,16 @@
                     const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                     const quantityExpectedPH = e.quantityExpectedPH || 0;
                     
-                    // Vérifier les quantités - Non conforme si quantité = 0 ou différente de l'attendue
+                    // Vérifier les quantités
+                    // Si quantité non renseignée (null) → OK (pas encore inspecté)
+                    // Si quantité = 0 → NON OK (manquant)
+                    // Si quantité différente de l'attendue → NON OK
                     const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                                       (quantityPresentClassique === null) || // Non renseigné = OK
+                                       (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
                     const phOK = (quantityExpectedPH === 0) || 
-                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                                (quantityPresentPH === null) || // Non renseigné = OK
+                                (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1091,11 +1096,16 @@
                 // Vérifier la conformité (seulement si évalué)
                 let isConforme = false;
                 if (isEvaluated) {
-                    // Vérifier les quantités - Non conforme si quantité = 0 ou différente de l'attendue
+                    // Vérifier les quantités
+                    // Si quantité non renseignée (null) → considéré comme OK (pas encore inspecté)
+                    // Si quantité = 0 → NON OK (manquant)
+                    // Si quantité différente de l'attendue → NON OK
                     const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                                       (quantityPresentClassique === null) || // Non renseigné = OK
+                                       (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
                     const phOK = (quantityExpectedPH === 0) || 
-                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                                (quantityPresentPH === null) || // Non renseigné = OK
+                                (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1457,11 +1467,18 @@
                         </select>
                     </div>
 
-                    <button 
-                        onclick="validateAllForElement('${elementId}')"
-                        class="w-full mb-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium text-sm">
-                        ✓ Tout valider (conforme)
-                    </button>
+                    <div class="flex gap-2 mb-4">
+                        <button 
+                            onclick="validateAllForElement('${elementId}')"
+                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium text-sm">
+                            ✓ Tout valider
+                        </button>
+                        <button 
+                            onclick="resetInspection('${elementId}')"
+                            class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 font-medium text-sm">
+                            🔄 Réinitialiser
+                        </button>
+                    </div>
 
                     ${dateHTML}
 
@@ -1748,6 +1765,25 @@
             renderRinceOeilList();
         }
 
+        // Fonction pour réinitialiser l'inspection d'un rince-œil
+        function resetInspection(elementId) {
+            if (!confirm('Êtes-vous sûr de vouloir réinitialiser l\'inspection de ce rince-œil ?\n\nToutes les données d\'inspection seront effacées (quantités, dates, critères, commentaire).')) {
+                return;
+            }
+            
+            // Supprimer l'inspection pour cet élément
+            inspections = inspections.filter(i => !(i.campaign === currentCampaign && i.elementId === elementId));
+            saveToStorage();
+            
+            // Rafraîchir l'affichage
+            selectElement(elementId);
+            addHotspots();
+            updateKPIs();
+            renderRinceOeilList();
+            
+            console.log(`🔄 Inspection réinitialisée pour ${elementId}`);
+        }
+
         // Fonction pour supprimer toutes les inspections de la campagne en cours
         function deleteAllInspections() {
             const nbInspections = inspections.filter(i => i.campaign === currentCampaign).length;
@@ -1822,14 +1858,18 @@
 
             adminConfig.elements.forEach((element, index) => {
                 const insp = getInspection(element.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
-                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
                 
                 // Vérifier la conformité (quantités + dates si définies)
-                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
-                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                const classiqueOK = (quantityExpectedClassique === 0) || 
+                                   (quantityPresentClassique === null) || // Non renseigné = OK
+                                   (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || 
+                            (quantityPresentPH === null) || // Non renseigné = OK
+                            (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                 
                 // Vérifier toutes les dates classiques
                 let dateClassiqueOK = true;
@@ -2582,13 +2622,17 @@
                 const type = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
                 const equipe = element.equipe || 'Non définie';
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
-                const quantityPresentClassique = insp.quantityPresentClassique || 0;
+                const quantityPresentClassique = insp.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
-                const quantityPresentPH = insp.quantityPresentPH || 0;
+                const quantityPresentPH = insp.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                 
-                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
-                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
-                const conforme = (classiqueOK && phOK && (quantityPresentClassique > 0 || quantityPresentPH > 0)) ? 'Oui' : 'Non';
+                const classiqueOK = (quantityExpectedClassique === 0) || 
+                                   (quantityPresentClassique === null) ||
+                                   (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || 
+                            (quantityPresentPH === null) ||
+                            (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                const conforme = (classiqueOK && phOK && (quantityPresentClassique !== null || quantityPresentPH !== null)) ? 'Oui' : 'Non';
                 
                 const comment = (insp.comment || element.comment || '').replace(/,/g, ';').replace(/\n/g, ' ');
                 csv += `"${numero}",${type},"${equipe}",${quantityExpectedClassique},${quantityPresentClassique},${quantityExpectedPH},${quantityPresentPH},${conforme},"${comment}"\n`;
