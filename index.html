@@ -1165,8 +1165,6 @@
             }
 
             const insp = getInspection(elementId) || { 
-                quantityPresentClassique: 0, 
-                quantityPresentPH: 0, 
                 datesConformesClassique: [],
                 datesConformesPH: [],
                 comment: '' 
@@ -1555,15 +1553,24 @@
         function updateQuantityPresent(elementId, type, quantity) {
             const insp = getInspection(elementId) || {};
             
+            // Si quantity est vide ou undefined, on met null (pas encore évalué)
+            // Si quantity est "0" ou 0, on garde 0 (évalué comme non conforme)
+            let parsedQuantity;
+            if (quantity === '' || quantity === null || quantity === undefined) {
+                parsedQuantity = null; // Non évalué
+            } else {
+                parsedQuantity = parseInt(quantity); // Peut être 0, 1, 2, etc.
+            }
+            
             if (type === 'classique') {
                 updateInspection(elementId, {
                     ...insp,
-                    quantityPresentClassique: parseInt(quantity) || 0
+                    quantityPresentClassique: parsedQuantity
                 });
             } else if (type === 'ph') {
                 updateInspection(elementId, {
                     ...insp,
-                    quantityPresentPH: parseInt(quantity) || 0
+                    quantityPresentPH: parsedQuantity
                 });
             }
 
