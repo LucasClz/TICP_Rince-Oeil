@@ -879,8 +879,8 @@
                 }
                 
                 // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite === true;
-                const accessibiliteOK = insp?.accessibilite === true;
+                const etatBoiteOK = insp?.etatBoite !== false;
+                const accessibiliteOK = insp?.accessibilite !== false;
                 
                 if (phOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentPH;
@@ -907,8 +907,8 @@
                 }
                 
                 // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite === true;
-                const accessibiliteOK = insp?.accessibilite === true;
+                const etatBoiteOK = insp?.etatBoite !== false;
+                const accessibiliteOK = insp?.accessibilite !== false;
                 
                 if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentClassique;
@@ -932,8 +932,8 @@
                 }
                 
                 // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite === true;
-                const accessibiliteOK = insp?.accessibilite === true;
+                const etatBoiteOK = insp?.etatBoite !== false;
+                const accessibiliteOK = insp?.accessibilite !== false;
                 
                 if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentClassique;
@@ -1040,8 +1040,11 @@
                     }
                     
                     // Vérifier les nouveaux critères
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    // undefined = pas encore renseigné → OK (ne bloque pas la conformité)
+                    // true = Oui → OK
+                    // false = Non → NON OK (bloque la conformité)
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     
                     // Non conforme = évalué mais pas conforme
                     const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
@@ -1114,9 +1117,12 @@
                         });
                     }
                     
-                    // Vérifier les nouveaux critères - DOIVENT être explicitement à true pour être OK
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    // Vérifier les nouveaux critères
+                    // undefined = pas encore renseigné → OK
+                    // true = Oui → OK
+                    // false = Non → NON OK
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     
                     isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                 }
@@ -1863,8 +1869,8 @@
                 } else if (shouldShow && currentStatusFilter === 'nonConforme') {
                     const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
                                         insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     // Non conforme = évalué mais pas conforme
                     if (!isEvaluated || isConforme) {
@@ -1886,8 +1892,8 @@
                                     insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                 
                 if (isEvaluated) {
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     if (isConforme) {
                         hotspot.classList.add('conforme');
@@ -2437,8 +2443,8 @@
                         });
                     }
                     
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     
                     if (isConforme) {
@@ -2478,8 +2484,8 @@
                         });
                     }
                     
-                    const etatBoiteOK = insp?.etatBoite === true;
-                    const accessibiliteOK = insp?.accessibilite === true;
+                    const etatBoiteOK = insp?.etatBoite !== false;
+                    const accessibiliteOK = insp?.accessibilite !== false;
                     const isConforme = classiqueOK && dateClassiqueOK && etatBoiteOK && accessibiliteOK;
                     
                     if (isConforme) {
