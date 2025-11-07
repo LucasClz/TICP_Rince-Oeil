@@ -863,10 +863,10 @@
             // Pour les pH: uniquement les rince-œil pH des neutraliseurs
             const phConformesQty = neutraliseurs.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                 const quantityExpectedPH = e.quantityExpectedPH || 0;
                 
-                const phOK = quantityPresentPH === quantityExpectedPH;
+                const phOK = (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                 
                 // Vérifier toutes les dates pH
                 let dateOK = true;
@@ -878,7 +878,11 @@
                     });
                 }
                 
-                if (phOK && dateOK && quantityPresentPH > 0) {
+                // Vérifier les nouveaux critères
+                const etatBoiteOK = insp?.etatBoite === true;
+                const accessibiliteOK = insp?.accessibilite === true;
+                
+                if (phOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentPH;
                 }
                 return sum;
@@ -887,10 +891,10 @@
             // Pour les standards: rince-œil classiques des standards + rince-œil classiques des neutraliseurs
             const standardConformesQty = standards.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
+                const classiqueOK = (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
                 
                 // Vérifier toutes les dates classiques
                 let dateOK = true;
@@ -902,16 +906,20 @@
                     });
                 }
                 
-                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
+                // Vérifier les nouveaux critères
+                const etatBoiteOK = insp?.etatBoite === true;
+                const accessibiliteOK = insp?.accessibilite === true;
+                
+                if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentClassique;
                 }
                 return sum;
             }, 0) + neutraliseurs.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
+                const classiqueOK = (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
                 
                 // Vérifier toutes les dates classiques
                 let dateOK = true;
@@ -923,7 +931,11 @@
                     });
                 }
                 
-                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
+                // Vérifier les nouveaux critères
+                const etatBoiteOK = insp?.etatBoite === true;
+                const accessibiliteOK = insp?.accessibilite === true;
+                
+                if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
                     return sum + quantityPresentClassique;
                 }
                 return sum;
@@ -1843,13 +1855,17 @@
                 
                 // Filtre par statut
                 if (shouldShow && currentStatusFilter === 'notEvaluated') {
-                    // Non évalué = aucune quantité saisie
-                    if (quantityPresentClassique > 0 || quantityPresentPH > 0) {
+                    // Non évalué = aucune quantité saisie ET aucun critère coché
+                    if (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined) {
                         shouldShow = false;
                     }
                 } else if (shouldShow && currentStatusFilter === 'nonConforme') {
-                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     // Non conforme = évalué mais pas conforme
                     if (!isEvaluated || isConforme) {
                         shouldShow = false;
@@ -1866,10 +1882,13 @@
                 // Pas de texte/numéro à l'intérieur
                 
                 // Déterminer le statut de conformité
-                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                 
                 if (isEvaluated) {
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     if (isConforme) {
                         hotspot.classList.add('conforme');
                     } else {
@@ -2382,18 +2401,21 @@
             
             neutraliseurs.forEach(e => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
-                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 const quantityExpectedPH = e.quantityExpectedPH || 0;
                 
-                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
+                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                 
                 if (!isEvaluated) {
                     neutraliseursNonEvalues++;
                 } else {
-                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    const classiqueOK = (quantityExpectedClassique === 0) || 
+                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || 
+                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -2415,7 +2437,9 @@
                         });
                     }
                     
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     
                     if (isConforme) {
                         neutraliseursConformes++;
@@ -2432,15 +2456,17 @@
             
             standards.forEach(e => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const isEvaluated = quantityPresentClassique > 0;
+                const isEvaluated = (quantityPresentClassique !== null || 
+                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
                 
                 if (!isEvaluated) {
                     standardsNonEvalues++;
                 } else {
-                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const classiqueOK = (quantityExpectedClassique === 0) || 
+                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -2452,7 +2478,9 @@
                         });
                     }
                     
-                    const isConforme = classiqueOK && dateClassiqueOK;
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    const isConforme = classiqueOK && dateClassiqueOK && etatBoiteOK && accessibiliteOK;
                     
                     if (isConforme) {
                         standardsConformes++;
