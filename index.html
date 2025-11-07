@@ -996,14 +996,16 @@
             } else if (currentStatusFilter === 'nonConforme') {
                 filteredElements = filteredElements.filter(e => {
                     const insp = getInspection(e.id);
-                    const quantityPresentClassique = insp?.quantityPresentClassique || 0;
-                    const quantityPresentPH = insp?.quantityPresentPH || 0;
+                    const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                    const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                     const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                     const quantityExpectedPH = e.quantityExpectedPH || 0;
                     
-                    // Vérifier les quantités
-                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    // Vérifier les quantités - Non conforme si quantité = 0 ou différente de l'attendue
+                    const classiqueOK = (quantityExpectedClassique === 0) || 
+                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || 
+                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1025,9 +1027,13 @@
                         });
                     }
                     
+                    // Vérifier les nouveaux critères
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    
                     // Non conforme = évalué mais pas conforme
-                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null);
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                     return isEvaluated && !isConforme;
                 });
             }
@@ -1052,8 +1058,8 @@
             let html = '';
             filteredElements.forEach((element, index) => {
                 const insp = getInspection(element.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
-                const quantityPresentPH = insp?.quantityPresentPH || 0;
+                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
                 const comment = insp?.comment || element.comment || '';
@@ -1063,13 +1069,16 @@
                 const typeColor = element.type === 'neutraliseur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
                 
                 // Vérifier si évalué
-                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null);
                 
                 // Vérifier la conformité (seulement si évalué)
                 let isConforme = false;
                 if (isEvaluated) {
-                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                    // Vérifier les quantités - Non conforme si quantité = 0 ou différente de l'attendue
+                    const classiqueOK = (quantityExpectedClassique === 0) || 
+                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || 
+                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1091,7 +1100,11 @@
                         });
                     }
                     
-                    isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
+                    // Vérifier les nouveaux critères
+                    const etatBoiteOK = insp?.etatBoite === true;
+                    const accessibiliteOK = insp?.accessibilite === true;
+                    
+                    isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
                 }
                 
                 // Icône et couleur selon le statut
@@ -1109,11 +1122,13 @@
 
                 let quantityDisplay = '';
                 if (quantityExpectedClassique > 0) {
-                    quantityDisplay += `Classique: ${quantityPresentClassique}/${quantityExpectedClassique}`;
+                    const qtyClassique = quantityPresentClassique !== null ? quantityPresentClassique : '-';
+                    quantityDisplay += `Classique: ${qtyClassique}/${quantityExpectedClassique}`;
                 }
                 if (quantityExpectedPH > 0) {
                     if (quantityDisplay) quantityDisplay += ' | ';
-                    quantityDisplay += `pH: ${quantityPresentPH}/${quantityExpectedPH}`;
+                    const qtyPH = quantityPresentPH !== null ? quantityPresentPH : '-';
+                    quantityDisplay += `pH: ${qtyPH}/${quantityExpectedPH}`;
                 }
 
                 html += `
@@ -1333,16 +1348,18 @@
             
             // Toujours afficher le champ classique si quantité prévue > 0
             if (quantityExpectedClassique > 0) {
+                const valueClassique = insp.quantityPresentClassique !== undefined && insp.quantityPresentClassique !== null ? insp.quantityPresentClassique : '';
                 quantityFieldsHTML += `
                     <div>
                         <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil classique</label>
                         <input type="number" 
                             id="quantityPresentClassique_${elementId}"
-                            value="${insp.quantityPresentClassique || 0}" 
+                            value="${valueClassique}" 
                             min="0" 
                             max="99"
                             onchange="updateQuantityPresent('${elementId}', 'classique', this.value)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            placeholder="Quantité présente">
                         <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedClassique}</p>
                     </div>
                 `;
@@ -1350,16 +1367,18 @@
 
             // Afficher le champ pH si quantité prévue > 0
             if (quantityExpectedPH > 0) {
+                const valuePH = insp.quantityPresentPH !== undefined && insp.quantityPresentPH !== null ? insp.quantityPresentPH : '';
                 quantityFieldsHTML += `
                     <div>
                         <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil pH</label>
                         <input type="number" 
                             id="quantityPresentPH_${elementId}"
-                            value="${insp.quantityPresentPH || 0}" 
+                            value="${valuePH}" 
                             min="0" 
                             max="99"
                             onchange="updateQuantityPresent('${elementId}', 'ph', this.value)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            placeholder="Quantité présente">
                         <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedPH}</p>
                     </div>
                 `;
@@ -1430,6 +1449,46 @@
 
                     <div class="space-y-4">
                         ${quantityFieldsHTML}
+
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                            <label class="block text-sm font-medium mb-2">État de la boîte conforme ?</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="etatBoite_${elementId}" value="true" 
+                                        ${insp.etatBoite === true ? 'checked' : ''}
+                                        onchange="updateEtatBoite('${elementId}', true)"
+                                        class="mr-2">
+                                    <span class="text-sm text-green-600 font-medium">✓ Oui</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="etatBoite_${elementId}" value="false" 
+                                        ${insp.etatBoite === false ? 'checked' : ''}
+                                        onchange="updateEtatBoite('${elementId}', false)"
+                                        class="mr-2">
+                                    <span class="text-sm text-red-600 font-medium">✗ Non</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                            <label class="block text-sm font-medium mb-2">Accessibilité conforme ?</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="accessibilite_${elementId}" value="true" 
+                                        ${insp.accessibilite === true ? 'checked' : ''}
+                                        onchange="updateAccessibilite('${elementId}', true)"
+                                        class="mr-2">
+                                    <span class="text-sm text-green-600 font-medium">✓ Oui</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="accessibilite_${elementId}" value="false" 
+                                        ${insp.accessibilite === false ? 'checked' : ''}
+                                        onchange="updateAccessibilite('${elementId}', false)"
+                                        class="mr-2">
+                                    <span class="text-sm text-red-600 font-medium">✗ Non</span>
+                                </label>
+                            </div>
+                        </div>
 
                         <div>
                             <label class="block text-sm font-medium mb-2">Commentaire (optionnel)</label>
@@ -1516,6 +1575,26 @@
                 ...insp,
                 comment: comment
             });
+        }
+
+        function updateEtatBoite(elementId, conforme) {
+            const insp = getInspection(elementId) || {};
+            updateInspection(elementId, {
+                ...insp,
+                etatBoite: conforme
+            });
+            // Mettre à jour l'apparence du hotspot
+            addHotspots();
+        }
+
+        function updateAccessibilite(elementId, conforme) {
+            const insp = getInspection(elementId) || {};
+            updateInspection(elementId, {
+                ...insp,
+                accessibilite: conforme
+            });
+            // Mettre à jour l'apparence du hotspot
+            addHotspots();
         }
 
         // Fonction pour ajouter une nouvelle date de validité
@@ -1628,6 +1707,10 @@
                     }
                 });
             }
+            
+            // Mettre les nouveaux critères comme conformes
+            insp.etatBoite = true;
+            insp.accessibilite = true;
             
             updateInspection(elementId, insp);
             
