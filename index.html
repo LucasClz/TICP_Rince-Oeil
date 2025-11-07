@@ -863,10 +863,10 @@
             // Pour les pH: uniquement les rince-œil pH des neutraliseurs
             const phConformesQty = neutraliseurs.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
                 const quantityExpectedPH = e.quantityExpectedPH || 0;
                 
-                const phOK = (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                const phOK = quantityPresentPH === quantityExpectedPH;
                 
                 // Vérifier toutes les dates pH
                 let dateOK = true;
@@ -878,11 +878,7 @@
                     });
                 }
                 
-                // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite !== false;
-                const accessibiliteOK = insp?.accessibilite !== false;
-                
-                if (phOK && dateOK && etatBoiteOK && accessibiliteOK) {
+                if (phOK && dateOK && quantityPresentPH > 0) {
                     return sum + quantityPresentPH;
                 }
                 return sum;
@@ -891,10 +887,10 @@
             // Pour les standards: rince-œil classiques des standards + rince-œil classiques des neutraliseurs
             const standardConformesQty = standards.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const classiqueOK = (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
                 
                 // Vérifier toutes les dates classiques
                 let dateOK = true;
@@ -906,20 +902,16 @@
                     });
                 }
                 
-                // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite !== false;
-                const accessibiliteOK = insp?.accessibilite !== false;
-                
-                if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
+                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
                     return sum + quantityPresentClassique;
                 }
                 return sum;
             }, 0) + neutraliseurs.reduce((sum, e) => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const classiqueOK = (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                const classiqueOK = quantityPresentClassique === quantityExpectedClassique;
                 
                 // Vérifier toutes les dates classiques
                 let dateOK = true;
@@ -931,11 +923,7 @@
                     });
                 }
                 
-                // Vérifier les nouveaux critères
-                const etatBoiteOK = insp?.etatBoite !== false;
-                const accessibiliteOK = insp?.accessibilite !== false;
-                
-                if (classiqueOK && dateOK && etatBoiteOK && accessibiliteOK) {
+                if (classiqueOK && dateOK && quantityPresentClassique > 0) {
                     return sum + quantityPresentClassique;
                 }
                 return sum;
@@ -1008,21 +996,14 @@
             } else if (currentStatusFilter === 'nonConforme') {
                 filteredElements = filteredElements.filter(e => {
                     const insp = getInspection(e.id);
-                    const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
-                    const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                    const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                    const quantityPresentPH = insp?.quantityPresentPH || 0;
                     const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                     const quantityExpectedPH = e.quantityExpectedPH || 0;
                     
                     // Vérifier les quantités
-                    // Si quantité non renseignée (null) → OK (pas encore inspecté)
-                    // Si quantité = 0 → NON OK (manquant)
-                    // Si quantité différente de l'attendue → NON OK
-                    const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique === null) || // Non renseigné = OK
-                                       (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || 
-                                (quantityPresentPH === null) || // Non renseigné = OK
-                                (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1044,17 +1025,9 @@
                         });
                     }
                     
-                    // Vérifier les nouveaux critères
-                    // undefined = pas encore renseigné → OK (ne bloque pas la conformité)
-                    // true = Oui → OK
-                    // false = Non → NON OK (bloque la conformité)
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    
                     // Non conforme = évalué mais pas conforme
-                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
+                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
                     return isEvaluated && !isConforme;
                 });
             }
@@ -1079,8 +1052,8 @@
             let html = '';
             filteredElements.forEach((element, index) => {
                 const insp = getInspection(element.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
-                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
                 const comment = insp?.comment || element.comment || '';
@@ -1089,23 +1062,14 @@
                 const typeLabel = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
                 const typeColor = element.type === 'neutraliseur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
                 
-                // Vérifier si évalué - dès qu'une quantité est renseignée (même 0)
-                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
+                // Vérifier si évalué
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
                 
                 // Vérifier la conformité (seulement si évalué)
                 let isConforme = false;
                 if (isEvaluated) {
-                    // Vérifier les quantités
-                    // Si quantité non renseignée (null) → considéré comme OK (pas encore inspecté)
-                    // Si quantité = 0 → NON OK (manquant)
-                    // Si quantité différente de l'attendue → NON OK
-                    const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique === null) || // Non renseigné = OK
-                                       (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || 
-                                (quantityPresentPH === null) || // Non renseigné = OK
-                                (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -1127,14 +1091,7 @@
                         });
                     }
                     
-                    // Vérifier les nouveaux critères
-                    // undefined = pas encore renseigné → OK
-                    // true = Oui → OK
-                    // false = Non → NON OK
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    
-                    isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
+                    isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
                 }
                 
                 // Icône et couleur selon le statut
@@ -1152,13 +1109,11 @@
 
                 let quantityDisplay = '';
                 if (quantityExpectedClassique > 0) {
-                    const qtyClassique = quantityPresentClassique !== null ? quantityPresentClassique : '-';
-                    quantityDisplay += `Classique: ${qtyClassique}/${quantityExpectedClassique}`;
+                    quantityDisplay += `Classique: ${quantityPresentClassique}/${quantityExpectedClassique}`;
                 }
                 if (quantityExpectedPH > 0) {
                     if (quantityDisplay) quantityDisplay += ' | ';
-                    const qtyPH = quantityPresentPH !== null ? quantityPresentPH : '-';
-                    quantityDisplay += `pH: ${qtyPH}/${quantityExpectedPH}`;
+                    quantityDisplay += `pH: ${quantityPresentPH}/${quantityExpectedPH}`;
                 }
 
                 html += `
@@ -1193,6 +1148,8 @@
             }
 
             const insp = getInspection(elementId) || { 
+                quantityPresentClassique: 0, 
+                quantityPresentPH: 0, 
                 datesConformesClassique: [],
                 datesConformesPH: [],
                 comment: '' 
@@ -1376,18 +1333,16 @@
             
             // Toujours afficher le champ classique si quantité prévue > 0
             if (quantityExpectedClassique > 0) {
-                const valueClassique = insp.quantityPresentClassique !== undefined && insp.quantityPresentClassique !== null ? insp.quantityPresentClassique : '';
                 quantityFieldsHTML += `
                     <div>
                         <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil classique</label>
                         <input type="number" 
                             id="quantityPresentClassique_${elementId}"
-                            value="${valueClassique}" 
+                            value="${insp.quantityPresentClassique || 0}" 
                             min="0" 
                             max="99"
                             onchange="updateQuantityPresent('${elementId}', 'classique', this.value)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Quantité présente">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
                         <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedClassique}</p>
                     </div>
                 `;
@@ -1395,18 +1350,16 @@
 
             // Afficher le champ pH si quantité prévue > 0
             if (quantityExpectedPH > 0) {
-                const valuePH = insp.quantityPresentPH !== undefined && insp.quantityPresentPH !== null ? insp.quantityPresentPH : '';
                 quantityFieldsHTML += `
                     <div>
                         <label class="block text-sm font-medium mb-2">Quantité présente - Rince-œil pH</label>
                         <input type="number" 
                             id="quantityPresentPH_${elementId}"
-                            value="${valuePH}" 
+                            value="${insp.quantityPresentPH || 0}" 
                             min="0" 
                             max="99"
                             onchange="updateQuantityPresent('${elementId}', 'ph', this.value)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Quantité présente">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
                         <p class="text-xs text-gray-500 mt-1">Quantité prévue: ${quantityExpectedPH}</p>
                     </div>
                 `;
@@ -1467,63 +1420,16 @@
                         </select>
                     </div>
 
-                    <div class="flex gap-2 mb-4">
-                        <button 
-                            onclick="validateAllForElement('${elementId}')"
-                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium text-sm">
-                            ✓ Tout valider
-                        </button>
-                        <button 
-                            onclick="resetInspection('${elementId}')"
-                            class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 font-medium text-sm">
-                            🔄 Réinitialiser
-                        </button>
-                    </div>
+                    <button 
+                        onclick="validateAllForElement('${elementId}')"
+                        class="w-full mb-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium text-sm">
+                        ✓ Tout valider (conforme)
+                    </button>
 
                     ${dateHTML}
 
                     <div class="space-y-4">
                         ${quantityFieldsHTML}
-
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-                            <label class="block text-sm font-medium mb-2">État de la boîte conforme ?</label>
-                            <div class="flex gap-4">
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="etatBoite_${elementId}" value="true" 
-                                        ${insp.etatBoite === true ? 'checked' : ''}
-                                        onchange="updateEtatBoite('${elementId}', true)"
-                                        class="mr-2">
-                                    <span class="text-sm text-green-600 font-medium">✓ Oui</span>
-                                </label>
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="etatBoite_${elementId}" value="false" 
-                                        ${insp.etatBoite === false ? 'checked' : ''}
-                                        onchange="updateEtatBoite('${elementId}', false)"
-                                        class="mr-2">
-                                    <span class="text-sm text-red-600 font-medium">✗ Non</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-                            <label class="block text-sm font-medium mb-2">Accessibilité conforme ?</label>
-                            <div class="flex gap-4">
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="accessibilite_${elementId}" value="true" 
-                                        ${insp.accessibilite === true ? 'checked' : ''}
-                                        onchange="updateAccessibilite('${elementId}', true)"
-                                        class="mr-2">
-                                    <span class="text-sm text-green-600 font-medium">✓ Oui</span>
-                                </label>
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="accessibilite_${elementId}" value="false" 
-                                        ${insp.accessibilite === false ? 'checked' : ''}
-                                        onchange="updateAccessibilite('${elementId}', false)"
-                                        class="mr-2">
-                                    <span class="text-sm text-red-600 font-medium">✗ Non</span>
-                                </label>
-                            </div>
-                        </div>
 
                         <div>
                             <label class="block text-sm font-medium mb-2">Commentaire (optionnel)</label>
@@ -1588,24 +1494,15 @@
         function updateQuantityPresent(elementId, type, quantity) {
             const insp = getInspection(elementId) || {};
             
-            // Si quantity est vide ou undefined, on met null (pas encore évalué)
-            // Si quantity est "0" ou 0, on garde 0 (évalué comme non conforme)
-            let parsedQuantity;
-            if (quantity === '' || quantity === null || quantity === undefined) {
-                parsedQuantity = null; // Non évalué
-            } else {
-                parsedQuantity = parseInt(quantity); // Peut être 0, 1, 2, etc.
-            }
-            
             if (type === 'classique') {
                 updateInspection(elementId, {
                     ...insp,
-                    quantityPresentClassique: parsedQuantity
+                    quantityPresentClassique: parseInt(quantity) || 0
                 });
             } else if (type === 'ph') {
                 updateInspection(elementId, {
                     ...insp,
-                    quantityPresentPH: parsedQuantity
+                    quantityPresentPH: parseInt(quantity) || 0
                 });
             }
 
@@ -1619,26 +1516,6 @@
                 ...insp,
                 comment: comment
             });
-        }
-
-        function updateEtatBoite(elementId, conforme) {
-            const insp = getInspection(elementId) || {};
-            updateInspection(elementId, {
-                ...insp,
-                etatBoite: conforme
-            });
-            // Mettre à jour l'apparence du hotspot
-            addHotspots();
-        }
-
-        function updateAccessibilite(elementId, conforme) {
-            const insp = getInspection(elementId) || {};
-            updateInspection(elementId, {
-                ...insp,
-                accessibilite: conforme
-            });
-            // Mettre à jour l'apparence du hotspot
-            addHotspots();
         }
 
         // Fonction pour ajouter une nouvelle date de validité
@@ -1752,10 +1629,6 @@
                 });
             }
             
-            // Mettre les nouveaux critères comme conformes
-            insp.etatBoite = true;
-            insp.accessibilite = true;
-            
             updateInspection(elementId, insp);
             
             // Rafraîchir l'affichage
@@ -1763,25 +1636,6 @@
             addHotspots();
             updateKPIs();
             renderRinceOeilList();
-        }
-
-        // Fonction pour réinitialiser l'inspection d'un rince-œil
-        function resetInspection(elementId) {
-            if (!confirm('Êtes-vous sûr de vouloir réinitialiser l\'inspection de ce rince-œil ?\n\nToutes les données d\'inspection seront effacées (quantités, dates, critères, commentaire).')) {
-                return;
-            }
-            
-            // Supprimer l'inspection pour cet élément
-            inspections = inspections.filter(i => !(i.campaign === currentCampaign && i.elementId === elementId));
-            saveToStorage();
-            
-            // Rafraîchir l'affichage
-            selectElement(elementId);
-            addHotspots();
-            updateKPIs();
-            renderRinceOeilList();
-            
-            console.log(`🔄 Inspection réinitialisée pour ${elementId}`);
         }
 
         // Fonction pour supprimer toutes les inspections de la campagne en cours
@@ -1858,18 +1712,14 @@
 
             adminConfig.elements.forEach((element, index) => {
                 const insp = getInspection(element.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
-                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
                 
                 // Vérifier la conformité (quantités + dates si définies)
-                const classiqueOK = (quantityExpectedClassique === 0) || 
-                                   (quantityPresentClassique === null) || // Non renseigné = OK
-                                   (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
-                const phOK = (quantityExpectedPH === 0) || 
-                            (quantityPresentPH === null) || // Non renseigné = OK
-                            (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
                 
                 // Vérifier toutes les dates classiques
                 let dateClassiqueOK = true;
@@ -1901,17 +1751,13 @@
                 
                 // Filtre par statut
                 if (shouldShow && currentStatusFilter === 'notEvaluated') {
-                    // Non évalué = aucune quantité saisie ET aucun critère coché
-                    if (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined) {
+                    // Non évalué = aucune quantité saisie
+                    if (quantityPresentClassique > 0 || quantityPresentPH > 0) {
                         shouldShow = false;
                     }
                 } else if (shouldShow && currentStatusFilter === 'nonConforme') {
-                    const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                                        insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
+                    const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
                     // Non conforme = évalué mais pas conforme
                     if (!isEvaluated || isConforme) {
                         shouldShow = false;
@@ -1928,13 +1774,10 @@
                 // Pas de texte/numéro à l'intérieur
                 
                 // Déterminer le statut de conformité
-                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
                 
                 if (isEvaluated) {
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
                     if (isConforme) {
                         hotspot.classList.add('conforme');
                     } else {
@@ -2447,21 +2290,18 @@
             
             neutraliseurs.forEach(e => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
-                const quantityPresentPH = insp?.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
+                const quantityPresentPH = insp?.quantityPresentPH || 0;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 const quantityExpectedPH = e.quantityExpectedPH || 0;
                 
-                const isEvaluated = (quantityPresentClassique !== null || quantityPresentPH !== null || 
-                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
+                const isEvaluated = (quantityPresentClassique > 0 || quantityPresentPH > 0);
                 
                 if (!isEvaluated) {
                     neutraliseursNonEvalues++;
                 } else {
-                    const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
-                    const phOK = (quantityExpectedPH === 0) || 
-                                (quantityPresentPH !== null && quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                    const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -2483,9 +2323,7 @@
                         });
                     }
                     
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK && etatBoiteOK && accessibiliteOK;
+                    const isConforme = classiqueOK && phOK && dateClassiqueOK && datePHOK;
                     
                     if (isConforme) {
                         neutraliseursConformes++;
@@ -2502,17 +2340,15 @@
             
             standards.forEach(e => {
                 const insp = getInspection(e.id);
-                const quantityPresentClassique = insp?.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentClassique = insp?.quantityPresentClassique || 0;
                 const quantityExpectedClassique = e.quantityExpectedClassique || 0;
                 
-                const isEvaluated = (quantityPresentClassique !== null || 
-                                    insp?.etatBoite !== undefined || insp?.accessibilite !== undefined);
+                const isEvaluated = quantityPresentClassique > 0;
                 
                 if (!isEvaluated) {
                     standardsNonEvalues++;
                 } else {
-                    const classiqueOK = (quantityExpectedClassique === 0) || 
-                                       (quantityPresentClassique !== null && quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
+                    const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
                     
                     // Vérifier toutes les dates classiques
                     let dateClassiqueOK = true;
@@ -2524,9 +2360,7 @@
                         });
                     }
                     
-                    const etatBoiteOK = insp?.etatBoite !== false;
-                    const accessibiliteOK = insp?.accessibilite !== false;
-                    const isConforme = classiqueOK && dateClassiqueOK && etatBoiteOK && accessibiliteOK;
+                    const isConforme = classiqueOK && dateClassiqueOK;
                     
                     if (isConforme) {
                         standardsConformes++;
@@ -2622,17 +2456,13 @@
                 const type = element.type === 'neutraliseur' ? 'Neutraliseur pH' : 'Standard';
                 const equipe = element.equipe || 'Non définie';
                 const quantityExpectedClassique = element.quantityExpectedClassique || 0;
-                const quantityPresentClassique = insp.quantityPresentClassique !== undefined ? insp.quantityPresentClassique : null;
+                const quantityPresentClassique = insp.quantityPresentClassique || 0;
                 const quantityExpectedPH = element.quantityExpectedPH || 0;
-                const quantityPresentPH = insp.quantityPresentPH !== undefined ? insp.quantityPresentPH : null;
+                const quantityPresentPH = insp.quantityPresentPH || 0;
                 
-                const classiqueOK = (quantityExpectedClassique === 0) || 
-                                   (quantityPresentClassique === null) ||
-                                   (quantityPresentClassique > 0 && quantityPresentClassique === quantityExpectedClassique);
-                const phOK = (quantityExpectedPH === 0) || 
-                            (quantityPresentPH === null) ||
-                            (quantityPresentPH > 0 && quantityPresentPH === quantityExpectedPH);
-                const conforme = (classiqueOK && phOK && (quantityPresentClassique !== null || quantityPresentPH !== null)) ? 'Oui' : 'Non';
+                const classiqueOK = (quantityExpectedClassique === 0) || (quantityPresentClassique === quantityExpectedClassique);
+                const phOK = (quantityExpectedPH === 0) || (quantityPresentPH === quantityExpectedPH);
+                const conforme = (classiqueOK && phOK && (quantityPresentClassique > 0 || quantityPresentPH > 0)) ? 'Oui' : 'Non';
                 
                 const comment = (insp.comment || element.comment || '').replace(/,/g, ';').replace(/\n/g, ' ');
                 csv += `"${numero}",${type},"${equipe}",${quantityExpectedClassique},${quantityPresentClassique},${quantityExpectedPH},${quantityPresentPH},${conforme},"${comment}"\n`;
