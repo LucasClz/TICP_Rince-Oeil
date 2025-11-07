@@ -703,6 +703,16 @@
         // ========================================
         function saveToStorage() {
             try {
+                // Sauvegarde de secours avec timestamp
+                const backupKey = 'rinceOeil_adminConfig_backup_' + Date.now();
+                localStorage.setItem(backupKey, JSON.stringify(adminConfig));
+                
+                // Garder seulement les 5 dernières sauvegardes
+                const allKeys = Object.keys(localStorage).filter(k => k.startsWith('rinceOeil_adminConfig_backup_'));
+                if (allKeys.length > 5) {
+                    allKeys.sort().slice(0, -5).forEach(k => localStorage.removeItem(k));
+                }
+                
                 // Toujours sauvegarder les inspections
                 localStorage.setItem('rinceOeil_inspections', JSON.stringify(inspections));
                 
@@ -716,6 +726,34 @@
                 console.error('Erreur de sauvegarde:', e);
                 alert('Erreur lors de la sauvegarde des données');
             }
+        }
+
+        // Fonction pour récupérer depuis les sauvegardes
+        function recoverFromBackup() {
+            const allBackups = Object.keys(localStorage)
+                .filter(k => k.startsWith('rinceOeil_adminConfig_backup_'))
+                .sort()
+                .reverse();
+            
+            console.log('=== SAUVEGARDES DISPONIBLES ===');
+            allBackups.forEach((key, idx) => {
+                const data = JSON.parse(localStorage.getItem(key));
+                const timestamp = parseInt(key.split('_').pop());
+                const date = new Date(timestamp);
+                const nbDates = data.elements ? data.elements.reduce((sum, el) => {
+                    return sum + (el.datesValiditeClassique?.length || 0) + (el.datesValiditePH?.length || 0);
+                }, 0) : 0;
+                
+                console.log(`${idx}: ${date.toLocaleString()} - ${data.elements?.length || 0} éléments, ${nbDates} dates`);
+            });
+            
+            if (allBackups.length > 0) {
+                const latest = allBackups[0];
+                const data = JSON.parse(localStorage.getItem(latest));
+                console.log('Dernière sauvegarde:', data);
+                return data;
+            }
+            return null;
         }
 
         function loadFromStorage() {
